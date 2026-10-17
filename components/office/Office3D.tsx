@@ -9,6 +9,7 @@ interface Office3DProps {
   stage?: string;
   progress?: number;
   jobTitle?: string;
+  brand?: string; // key into OFFICE_THEMES — one themed floor per channel
 }
 
 type SceneHandle = {
@@ -19,7 +20,7 @@ type SceneHandle = {
   destroy: () => void;
 };
 
-export default function Office3D({ workingIds, status, stage, progress, jobTitle }: Office3DProps) {
+export default function Office3D({ workingIds, status, stage, progress, jobTitle, brand = "avatails" }: Office3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SceneHandle | null>(null);
   const [ready, setReady] = useState(false);
@@ -27,15 +28,20 @@ export default function Office3D({ workingIds, status, stage, progress, jobTitle
   const [cyberpunk, setCyberpunk] = useState(false);
   const [clockText, setClockText] = useState("");
 
-  // Create scene once (client-only; this component is loaded with ssr:false)
+  // Create scene (client-only; this component is loaded with ssr:false).
+  // Rebuilds when the brand changes — each channel gets its own themed floor.
   useEffect(() => {
     let alive = true;
+    setReady(false);
     import("./officeScene")
       .then((m) => {
         if (!alive || !mountRef.current || sceneRef.current) return;
         try {
           const now = new Date();
-          const scene = m.createOfficeScene(mountRef.current) as SceneHandle;
+          type Theme = (typeof m.OFFICE_THEMES)["avatails"];
+          const themes = m.OFFICE_THEMES as Record<string, Theme>;
+          const theme = themes[brand] || m.OFFICE_THEMES.avatails;
+          const scene = m.createOfficeScene(mountRef.current, theme) as SceneHandle;
           scene.setTime(now.getHours() * 60 + now.getMinutes());
           sceneRef.current = scene;
           setReady(true);
@@ -51,7 +57,7 @@ export default function Office3D({ workingIds, status, stage, progress, jobTitle
         sceneRef.current = null;
       }
     };
-  }, []);
+  }, [brand]);
 
   // Forward working agents + current stage to the scene
   useEffect(() => {
@@ -80,7 +86,7 @@ export default function Office3D({ workingIds, status, stage, progress, jobTitle
   return (
     <div className="office-wrap">
       <div ref={mountRef} className="office-canvas" />
-      {!ready && !error && <div className="office-loading">🖥️ Powering up the AI data centre…</div>}
+      {!ready && !error && <div className="office-loading">🖥️ Powering up the {brand === "wildtails" ? "WildTails" : "AvaTails"} hall…</div>}
       {error && <div className="office-loading">⚠️ 3D floor failed to start: {error}</div>}
 
       {/* top-left: live status */}

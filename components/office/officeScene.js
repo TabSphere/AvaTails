@@ -1,8 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// TabSphere — YouTube Automation Division · 3D Operations Floor (v7, bright)
+// TabSphere — YouTube Automation Division · 3D Operations Floor (v8, multi-brand)
 // Adapted from Gaurav2693/ai-office (MIT License) — https://github.com/Gaurav2693/ai-office
-// © Gaurav Mishra. Reworked for TabSphere/@AvaTails: 6 real agents driven by the
-// live job queue, inside a bright AI data-centre / innovation hub.
+// © Gaurav Mishra. Reworked for TabSphere: 6 real agents driven by the live job
+// queue, inside bright AI data-centre halls — one themed floor per channel brand.
+// To add a future channel/office: add ONE entry to OFFICE_THEMES below and one
+// to the BRANDS list in app/page.tsx — everything else is automatic.
 // ─────────────────────────────────────────────────────────────────────────────
 import * as THREE from "three";
 
@@ -14,6 +16,34 @@ export const OFFICE_AGENTS = [
   { id: "editor",    name: "EDITOR", full: "Video Editor",   color: 0x448aff, hex: "#448AFF", screen: "editor",    hair: 0x3e2723, shirt: 0x1565c0, pants: 0x263238 },
   { id: "publisher", name: "PUB",    full: "Publisher",      color: 0xff6d00, hex: "#FF6D00", screen: "publisher", hair: 0x1a1a1a, shirt: 0xd84315, pants: 0x3e2723 },
 ];
+
+// ── Brand themes: one per channel. Add future divisions here. ───────────────
+export const OFFICE_THEMES = {
+  avatails: {
+    id: "avatails",
+    dayBg: 0x93a9d4,
+    wall: 0xccd6e8, wallSide: 0xd4ddee, floor: 0xdde4ee,
+    gridBase: "#dde4ee", gridLine: "rgba(40,90,180,0.14)", gridBorder: "rgba(40,90,180,0.28)",
+    accent: 0xffb020, accent2: 0x0fa8c8,
+    signBg: "#ccd6e8",
+    signA: "Tab", signAColor: "#16224a", signB: "Sphere", signBColor: "#f59f00",
+    signSub: "Y O U T U B E   A U T O M A T I O N   D I V I S I O N", signSubColor: "#0e7a8f",
+    boardIdle: "@AVATAILS — QUEUE EMPTY",
+    packetA: 0xf59f00, packetB: 0x0fa8c8,
+  },
+  wildtails: {
+    id: "wildtails",
+    dayBg: 0x9fc4a8,
+    wall: 0xd2e2cc, wallSide: 0xdae8d5, floor: 0xdfe8da,
+    gridBase: "#dfe8da", gridLine: "rgba(28,105,58,0.14)", gridBorder: "rgba(28,105,58,0.28)",
+    accent: 0x2e9e5b, accent2: 0xff6d00,
+    signBg: "#d2e2cc",
+    signA: "Wild", signAColor: "#1b5e20", signB: "Tails", signBColor: "#ff6d00",
+    signSub: "B Y   T A B S P H E R E   ·   W I L D   N A T U R E   D I V I S I O N", signSubColor: "#2e7d46",
+    boardIdle: "@WILDTAILS — QUEUE EMPTY",
+    packetA: 0x2e9e5b, packetB: 0xff6d00,
+  },
+};
 
 const CHAT_PHRASES = [
   "GPU cluster at 98% 🔥", "cooling nominal ❄️", "latency 12ms ⚡", "episode shipped 📦",
@@ -29,15 +59,15 @@ class RNG {
   i(a, b) { return Math.floor(this.r(a, b + 1)); }
 }
 
-export function createOfficeScene(container) {
+export function createOfficeScene(container, theme = OFFICE_THEMES.avatails) {
   const rng = new RNG(7);
   const W = () => container.clientWidth || 800;
   const H = () => container.clientHeight || 480;
 
   // ── Scene / camera / renderer ────────────────────────────────────────────
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x93a9d4);
-  scene.fog = new THREE.FogExp2(0x93a9d4, 0.004);
+  scene.background = new THREE.Color(theme.dayBg);
+  scene.fog = new THREE.FogExp2(theme.dayBg, 0.004);
 
   const camera = new THREE.PerspectiveCamera(30, W() / H(), 0.1, 500);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -95,18 +125,18 @@ export function createOfficeScene(container) {
   const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
   const MB = (c) => new THREE.MeshBasicMaterial({ color: c });
 
-  // Raised floor: light base + soft blue grid
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(26, 0.15, 18), M(0xdde4ee));
+  // Raised floor: light base + soft grid (theme-tinted)
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(26, 0.15, 18), M(theme.floor));
   floor.position.y = -0.075; floor.receiveShadow = true; office.add(floor);
   const gridCv = document.createElement("canvas"); gridCv.width = 256; gridCv.height = 256;
   const gc = gridCv.getContext("2d");
-  gc.fillStyle = "#dde4ee"; gc.fillRect(0, 0, 256, 256);
-  gc.strokeStyle = "rgba(40,90,180,0.14)"; gc.lineWidth = 2;
+  gc.fillStyle = theme.gridBase; gc.fillRect(0, 0, 256, 256);
+  gc.strokeStyle = theme.gridLine; gc.lineWidth = 2;
   for (let i = 0; i <= 256; i += 32) {
     gc.beginPath(); gc.moveTo(i, 0); gc.lineTo(i, 256); gc.stroke();
     gc.beginPath(); gc.moveTo(0, i); gc.lineTo(256, i); gc.stroke();
   }
-  gc.strokeStyle = "rgba(40,90,180,0.28)"; gc.lineWidth = 3;
+  gc.strokeStyle = theme.gridBorder; gc.lineWidth = 3;
   gc.strokeRect(1, 1, 254, 254);
   const gridTex = new THREE.CanvasTexture(gridCv);
   gridTex.wrapS = gridTex.wrapT = THREE.RepeatWrapping;
@@ -115,10 +145,10 @@ export function createOfficeScene(container) {
   gridFloor.rotation.x = -Math.PI / 2; gridFloor.position.y = 0.005; office.add(gridFloor);
 
   // ── Room shell: light walls, beams, skirting, brand stripes ──────────────
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(26, 4.5, 0.2), M(0xccd6e8));
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(26, 4.5, 0.2), M(theme.wall));
   wall.position.set(0, 2.25, -8.9); office.add(wall);
   [-13, 13].forEach((wx) => {
-    const side = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4.5, 18), M(0xd4ddee));
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4.5, 18), M(theme.wallSide));
     side.position.set(wx, 2.25, 0); office.add(side);
   });
   // ceiling beams (suggest a ceiling without blocking top-down orbit views)
@@ -133,15 +163,15 @@ export function createOfficeScene(container) {
     const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 18), M(0xffffff));
     s.position.set(wx, 0.09, 0); office.add(s);
   });
-  // amber brand stripe + cyan accent lines
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(26, 0.14, 0.04), MB(0xffb020));
+  // brand accent stripe + accent lines
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(26, 0.14, 0.04), MB(theme.accent));
   stripe.position.set(0, 0.55, -8.78); office.add(stripe);
   [0.28, 4.1].forEach((wy) => {
-    const line = new THREE.Mesh(new THREE.BoxGeometry(26, 0.05, 0.04), MB(0x0fa8c8));
+    const line = new THREE.Mesh(new THREE.BoxGeometry(26, 0.05, 0.04), MB(theme.accent2));
     line.position.set(0, wy, -8.78); office.add(line);
   });
   [-12.87, 12.87].forEach((wx) => {
-    const line = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 18), MB(0x0fa8c8));
+    const line = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 18), MB(theme.accent2));
     line.position.set(wx, 4.1, 0); office.add(line);
   });
 
@@ -169,15 +199,15 @@ export function createOfficeScene(container) {
     disp.position.set(wx, 2.7, -8.71); office.add(disp);
   });
 
-  // Back wall sign: TabSphere — YouTube Automation Division
+  // Back wall sign: brand title + division subtitle (theme-driven)
   const signCv = document.createElement("canvas"); signCv.width = 512; signCv.height = 96;
   const signCx = signCv.getContext("2d");
-  signCx.fillStyle = "#ccd6e8"; signCx.fillRect(0, 0, 512, 96);
+  signCx.fillStyle = theme.signBg; signCx.fillRect(0, 0, 512, 96);
   signCx.font = "bold 46px 'Segoe UI', sans-serif"; signCx.textAlign = "center";
-  signCx.fillStyle = "#16224a"; signCx.fillText("Tab", 196, 56);
-  signCx.fillStyle = "#f59f00"; signCx.fillText("Sphere", 322, 56);
-  signCx.font = "bold 17px 'Segoe UI', sans-serif"; signCx.fillStyle = "#0e7a8f";
-  signCx.fillText("Y O U T U B E   A U T O M A T I O N   D I V I S I O N", 256, 84);
+  signCx.fillStyle = theme.signAColor; signCx.fillText(theme.signA, 196, 56);
+  signCx.fillStyle = theme.signBColor; signCx.fillText(theme.signB, 322, 56);
+  signCx.font = "bold 17px 'Segoe UI', sans-serif"; signCx.fillStyle = theme.signSubColor;
+  signCx.fillText(theme.signSub, 256, 84);
   const signTex = new THREE.CanvasTexture(signCv); signTex.colorSpace = THREE.SRGBColorSpace;
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 1.5), new THREE.MeshBasicMaterial({ map: signTex }));
   sign.position.set(0, 3.1, -8.78); office.add(sign);
@@ -206,7 +236,7 @@ export function createOfficeScene(container) {
       c.fillText(Math.round(pct || 0) + "%", 466, 107);
     } else {
       c.fillStyle = "#7fd4ff"; c.font = "bold 24px 'Segoe UI', sans-serif";
-      c.fillText("@AVATAILS — QUEUE EMPTY", 256, 58);
+      c.fillText(theme.boardIdle, 256, 58);
       c.fillStyle = "#9AA3C7"; c.font = "17px 'Segoe UI', sans-serif";
       c.fillText("enqueue jobs to start production", 256, 92);
     }
@@ -310,7 +340,7 @@ export function createOfficeScene(container) {
     tray.position.set(0, 4.35, tz); office.add(tray);
   });
 
-  // Live data packets flowing along the trays
+  // Live data packets flowing along the trays (brand colours)
   const packets = [];
   const LANES = [
     { axis: "z", fixed: -11, dir: 1 },
@@ -322,7 +352,7 @@ export function createOfficeScene(container) {
     const lane = LANES[i % 4];
     const pkt = new THREE.Mesh(
       new THREE.BoxGeometry(0.09, 0.09, 0.09),
-      MB(i % 3 === 0 ? 0xf59f00 : 0x0fa8c8)
+      MB(i % 3 === 0 ? theme.packetA : theme.packetB)
     );
     const t = rng.r(-8, 8);
     if (lane.axis === "z") pkt.position.set(lane.fixed, 4.25, t);
@@ -513,8 +543,8 @@ export function createOfficeScene(container) {
     top.position.set(x, 0.72, z); top.castShadow = true; top.receiveShadow = true; office.add(top);
     const front = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.38, 0.03), M(0xdde4ec));
     front.position.set(x, 0.5, z + faceSign * -0.36); office.add(front);
-    // cyan under-desk LED strip
-    const led = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.02, 0.02), MB(0x0fa8c8));
+    // under-desk LED strip (brand accent)
+    const led = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.02, 0.02), MB(theme.accent2));
     led.position.set(x, 0.695, z + faceSign * 0.37); office.add(led);
 
     // monitor (screen faces the char)
@@ -758,7 +788,7 @@ export function createOfficeScene(container) {
   let timeOfDay = 600;
   let cyberpunk = false;
   const nightBg = new THREE.Color(0x0a0f1e);
-  const dayBg = new THREE.Color(0x93a9d4);
+  const dayBg = new THREE.Color(theme.dayBg);
   const bgTmp = new THREE.Color();
 
   function updateTime(min) {

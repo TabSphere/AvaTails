@@ -78,6 +78,15 @@ const DEFAULT_SETTINGS: Settings = {
   musicUrl: "",
 };
 
+/* ── Channel brands: each gets its own themed 3D office floor.
+   To add a future channel: add one entry here AND one in OFFICE_THEMES
+   (components/office/officeScene.js) — the floor, sign and theming follow automatically. ── */
+const BRANDS = [
+  { id: "avatails", name: "AvaTails", emoji: "🐊", tagline: "Kids animal ABC episodes" },
+  { id: "wildtails", name: "WildTails", emoji: "🦁", tagline: "Wild nature shorts" },
+] as const;
+type BrandId = (typeof BRANDS)[number]["id"];
+
 const loadSettings = (): Settings => {
   try {
     const raw = typeof window !== "undefined" ? localStorage.getItem("avatails_settings") : null;
@@ -127,8 +136,8 @@ export default function Home() {
         <div className="div-badge">YouTube Automation Division</div>
       </header>
       <p className="subtitle">
-        Powering the <strong>@AvaTails</strong> channel — your AI agent team for kids animal-learning episodes,
-        working around the clock.
+        Powering the <strong>@AvaTails</strong> and <strong>@WildTails</strong> channels — your AI agent team for
+        kids animal-learning episodes, working around the clock.
       </p>
 
       <nav className="tabs">
@@ -161,6 +170,8 @@ export default function Home() {
 function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Settings }) {
   const [triggerMsg, setTriggerMsg] = useState("");
   const [triggering, setTriggering] = useState(false);
+  const [brand, setBrand] = useState<BrandId>("avatails");
+  const activeBrand = BRANDS.find((b) => b.id === brand) || BRANDS[0];
 
   const runningJob = queue?.jobs.find((j) => j.status === "running");
   const queuedCount = queue?.jobs.filter((j) => j.status === "queued").length || 0;
@@ -213,8 +224,25 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
       </div>
 
       <div className="card">
-        <h2>🖥️ Inside the AI data centre — live</h2>
+        <h2>
+          🖥️ Inside the {activeBrand.name} AI data centre — live
+          <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 400, marginLeft: 8 }}>
+            {activeBrand.tagline}
+          </span>
+        </h2>
+        <div className="tabs" style={{ marginBottom: 14 }}>
+          {BRANDS.map((b) => (
+            <button
+              key={b.id}
+              className={`tab ${brand === b.id ? "active" : ""}`}
+              onClick={() => setBrand(b.id)}
+            >
+              {b.emoji} {b.name} floor
+            </button>
+          ))}
+        </div>
         <Office3D
+          brand={brand}
           workingIds={workingIds}
           status={officeStatus}
           stage={runningJob?.stage}
