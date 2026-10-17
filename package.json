@@ -1,6 +1,6 @@
 {
   "name": "avatails",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "AvaTails — automated kids animal-learning video factory",
   "scripts": {
@@ -16,7 +16,8 @@
     "openai": "^4.67.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
