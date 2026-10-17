@@ -99,9 +99,46 @@ export function createOfficeScene(container) {
   const carpet = new THREE.Mesh(new THREE.BoxGeometry(14, 0.02, 10), M(0xd0d8e0));
   carpet.position.set(0, 0.01, 0); carpet.receiveShadow = true; office.add(carpet);
 
-  // Back wall with AVATAILS sign
+  // ── Room shell: back + side walls, beams, skirting, brand stripe ──────────
   const wall = new THREE.Mesh(new THREE.BoxGeometry(26, 4.5, 0.2), M(0x1a2140));
   wall.position.set(0, 2.25, -8.9); office.add(wall);
+  [-13, 13].forEach((wx) => {
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4.5, 18), M(0x212a52));
+    side.position.set(wx, 2.25, 0); office.add(side);
+  });
+  // ceiling beams (suggest a ceiling without blocking top-down orbit views)
+  [-4, 0, 4].forEach((bz) => {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(26, 0.16, 0.4), M(0x141a33));
+    beam.position.set(0, 4.5, bz); office.add(beam);
+  });
+  // skirting boards
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(26, 0.18, 0.06), M(0xe8ecf0));
+  skirt.position.set(0, 0.09, -8.77); office.add(skirt);
+  [-12.87, 12.87].forEach((wx) => {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 18), M(0xe8ecf0));
+    s.position.set(wx, 0.09, 0); office.add(s);
+  });
+  // brand stripe along the back wall
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(26, 0.14, 0.04), MB(0xffb020));
+  stripe.position.set(0, 0.55, -8.78); office.add(stripe);
+
+  // Daylight windows flanking the sign
+  [-8.5, 8.5].forEach((wx) => {
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.9, 0.08), M(0x0f1428));
+    frame.position.set(wx, 2.7, -8.76); office.add(frame);
+    const paneCv = document.createElement("canvas"); paneCv.width = 128; paneCv.height = 80;
+    const pc = paneCv.getContext("2d");
+    const grad = pc.createLinearGradient(0, 0, 0, 80);
+    grad.addColorStop(0, "#7fb2ff"); grad.addColorStop(1, "#dcecff");
+    pc.fillStyle = grad; pc.fillRect(0, 0, 128, 80);
+    pc.strokeStyle = "#0f1428"; pc.lineWidth = 5;
+    pc.beginPath(); pc.moveTo(64, 0); pc.lineTo(64, 80); pc.moveTo(0, 40); pc.lineTo(128, 40); pc.stroke();
+    const paneTex = new THREE.CanvasTexture(paneCv); paneTex.colorSpace = THREE.SRGBColorSpace;
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1.7), new THREE.MeshBasicMaterial({ map: paneTex }));
+    pane.position.set(wx, 2.7, -8.71); office.add(pane);
+  });
+
+  // Back wall with AVATAILS sign
   const signCv = document.createElement("canvas"); signCv.width = 512; signCv.height = 96;
   const signCx = signCv.getContext("2d");
   signCx.fillStyle = "#1a2140"; signCx.fillRect(0, 0, 512, 96);
@@ -113,6 +150,57 @@ export function createOfficeScene(container) {
   const signTex = new THREE.CanvasTexture(signCv); signTex.colorSpace = THREE.SRGBColorSpace;
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 1.5), new THREE.MeshBasicMaterial({ map: signTex }));
   sign.position.set(0, 3.1, -8.78); office.add(sign);
+
+  // Mission-control board: current job + live progress bar (under the sign)
+  const boardCv = document.createElement("canvas"); boardCv.width = 512; boardCv.height = 128;
+  const boardTex = new THREE.CanvasTexture(boardCv); boardTex.colorSpace = THREE.SRGBColorSpace;
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.3), new THREE.MeshBasicMaterial({ map: boardTex }));
+  board.position.set(0, 1.72, -8.78); office.add(board);
+  function drawBoard(title, pct, stage) {
+    const c = boardCv.getContext("2d");
+    c.fillStyle = "#0D1117"; c.fillRect(0, 0, 512, 128);
+    c.strokeStyle = "#2c3355"; c.lineWidth = 4; c.strokeRect(2, 2, 508, 124);
+    c.textAlign = "center";
+    if (title) {
+      c.fillStyle = "#FFB020"; c.font = "bold 32px 'Segoe UI', sans-serif";
+      c.fillText(title.toUpperCase().slice(0, 26), 256, 46);
+      c.fillStyle = "#9AA3C7"; c.font = "19px 'Segoe UI', sans-serif";
+      c.fillText((stage || "working").toUpperCase().slice(0, 34), 256, 74);
+      c.fillStyle = "#20263F"; c.fillRect(56, 92, 380, 18);
+      c.fillStyle = "#3DDC97";
+      c.fillRect(56, 92, 380 * Math.max(0, Math.min(1, (pct || 0) / 100)), 18);
+      c.fillStyle = "#F3F5FF"; c.font = "bold 15px 'Segoe UI', sans-serif";
+      c.fillText(Math.round(pct || 0) + "%", 466, 107);
+    } else {
+      c.fillStyle = "#3a4270"; c.font = "bold 25px 'Segoe UI', sans-serif";
+      c.fillText("QUEUE EMPTY — AGENTS STANDING BY", 256, 60);
+      c.fillStyle = "#9AA3C7"; c.font = "17px 'Segoe UI', sans-serif";
+      c.fillText("enqueue jobs to start production", 256, 92);
+    }
+    boardTex.needsUpdate = true;
+  }
+  drawBoard(null, 0, null);
+
+  // Wall clock — shows real local time
+  const clockCv = document.createElement("canvas"); clockCv.width = 96; clockCv.height = 96;
+  const clockTex = new THREE.CanvasTexture(clockCv); clockTex.colorSpace = THREE.SRGBColorSpace;
+  const wallClock = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.7, 0.7),
+    new THREE.MeshBasicMaterial({ map: clockTex, transparent: true })
+  );
+  wallClock.position.set(5.6, 3.1, -8.78); office.add(wallClock);
+  function drawClock(min) {
+    const c = clockCv.getContext("2d");
+    c.clearRect(0, 0, 96, 96);
+    c.fillStyle = "#f4f7ff"; c.beginPath(); c.arc(48, 48, 44, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "#1a2140"; c.lineWidth = 4; c.stroke();
+    const hr = ((min / 60) % 12) * (Math.PI / 6) - Math.PI / 2;
+    const mn = (min % 60) * (Math.PI / 30) - Math.PI / 2;
+    c.lineWidth = 5; c.beginPath(); c.moveTo(48, 48); c.lineTo(48 + Math.cos(hr) * 22, 48 + Math.sin(hr) * 22); c.stroke();
+    c.lineWidth = 3; c.beginPath(); c.moveTo(48, 48); c.lineTo(48 + Math.cos(mn) * 32, 48 + Math.sin(mn) * 32); c.stroke();
+    c.fillStyle = "#ffb020"; c.beginPath(); c.arc(48, 48, 4, 0, Math.PI * 2); c.fill();
+    clockTex.needsUpdate = true;
+  }
 
   // Ceiling tube lights (visual only)
   for (let x = -8; x <= 8; x += 8) {
@@ -276,7 +364,7 @@ export function createOfficeScene(container) {
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
     const sp = new THREE.Sprite(mat);
     sp.scale.set(1.6, 0.4, 1);
-    const draw = (working) => {
+    const draw = (working, stageText) => {
       const c = cv.getContext("2d");
       c.clearRect(0, 0, 256, 64);
       c.fillStyle = "rgba(7,18,38,0.78)";
@@ -286,7 +374,8 @@ export function createOfficeScene(container) {
       c.fillText(agent.name, 128, 32);
       c.font = "15px 'Segoe UI', sans-serif";
       c.fillStyle = working ? "#3DDC97" : "rgba(255,255,255,0.4)";
-      c.fillText(working ? "● WORKING" : "○ idle", 128, 50);
+      const sub = working ? "● " + (stageText || "working").toUpperCase().slice(0, 20) : "○ idle";
+      c.fillText(sub, 128, 50);
       tex.needsUpdate = true;
     };
     draw(false);
@@ -399,6 +488,41 @@ export function createOfficeScene(container) {
     }
   }
   addPlant(-11.5, -7.5); addPlant(11.5, -7.5); addPlant(-11.5, 6.5);
+
+  // Lounge rug
+  const rug = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.02, 2.8), M(0x3a2447));
+  rug.position.set(10, 0.02, 3.4); rug.receiveShadow = true; office.add(rug);
+
+  // Whiteboard: A–Z production tracker (left wall)
+  const wbCv = document.createElement("canvas"); wbCv.width = 256; wbCv.height = 160;
+  const wbc = wbCv.getContext("2d");
+  wbc.fillStyle = "#f4f7ff"; wbc.fillRect(0, 0, 256, 160);
+  wbc.fillStyle = "#1a2140"; wbc.font = "bold 15px 'Segoe UI', sans-serif"; wbc.textAlign = "left";
+  wbc.fillText("A-Z PRODUCTION", 12, 22);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  wbc.textAlign = "center";
+  for (let i = 0; i < 26; i++) {
+    const col = i % 7, row = Math.floor(i / 7);
+    const lx = 16 + col * 33, ly = 44 + row * 28;
+    wbc.fillStyle = "#c3cbe8"; wbc.fillRect(lx - 4, ly - 16, 26, 22);
+    wbc.fillStyle = "#1a2140"; wbc.font = "bold 14px 'Segoe UI', sans-serif";
+    wbc.fillText(letters[i], lx + 9, ly);
+  }
+  const wbTex = new THREE.CanvasTexture(wbCv); wbTex.colorSpace = THREE.SRGBColorSpace;
+  const wb = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.1), new THREE.MeshBasicMaterial({ map: wbTex }));
+  wb.position.set(-12.75, 2.3, -2); wb.rotation.y = Math.PI / 2; office.add(wb);
+
+  // Bookshelf with colorful binders (right wall)
+  const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.2, 2.6), M(0x2c3355));
+  shelf.position.set(12.7, 1.1, -3); office.add(shelf);
+  const bookColors = [0xffb020, 0x7c4dff, 0x00e676, 0xe040fb, 0x448aff, 0xff9100, 0xff5d8f];
+  for (let row = 0; row < 3; row++) {
+    for (let i = 0; i < 8; i++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.42, 0.22), M(bookColors[(row * 8 + i) % 7]));
+      b.position.set(12.48, 0.55 + row * 0.62, -4 + i * 0.28);
+      office.add(b);
+    }
+  }
 
   const papers = [];
   for (let i = 0; i < 10; i++) {
@@ -528,6 +652,7 @@ export function createOfficeScene(container) {
 
   function updateTime(min) {
     timeOfDay = min;
+    drawClock(min);
     const rawDay = Math.max(0, Math.sin(((min - 360) / 720) * Math.PI)); // 6:00–18:00
     const day = 0.45 + rawDay * 0.55; // studio stays bright and readable around the clock
     sun.intensity = cyberpunk ? 0.05 : 0.25 + day * 1.1;
@@ -547,14 +672,17 @@ export function createOfficeScene(container) {
     });
   }
 
-  function setWorking(ids) {
+  let currentStage = null;
+
+  function setWorking(ids, stage) {
+    if (stage !== undefined) currentStage = stage;
     const set = new Set(ids || []);
     agentData.forEach((ad) => {
       const w = set.has(ad.agent.id);
-      if (w === ad.working) return;
+      const changed = w !== ad.working;
       ad.working = w;
-      ad.label.draw(w);
-      if (w) {
+      if (changed || w) ad.label.draw(w, currentStage);
+      if (w && changed) {
         // called back to desk mid-wander
         ad.walker.visible = false; ad.sitting.visible = true;
         ad.state = "sitting"; ad.timer = 6 + rng.r(0, 10);
@@ -562,6 +690,11 @@ export function createOfficeScene(container) {
       }
     });
     updateTime(timeOfDay);
+  }
+
+  // Mission-control board: setJob("A is for Alligator", 42, "recording voice") / setJob(null)
+  function setJob(title, pct, stage) {
+    drawBoard(title || null, pct || 0, stage || null);
   }
 
   // ── Main loop ────────────────────────────────────────────────────────────
@@ -603,6 +736,7 @@ export function createOfficeScene(container) {
   // ── Public API ───────────────────────────────────────────────────────────
   return {
     setWorking,
+    setJob,
     setTime: updateTime,
     toggleCyberpunk: () => { cyberpunk = !cyberpunk; updateTime(timeOfDay); return cyberpunk; },
     destroy: () => {

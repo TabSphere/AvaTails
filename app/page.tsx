@@ -210,7 +210,13 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
 
       <div className="card">
         <h2>🏭 The factory floor — live</h2>
-        <Office3D workingIds={workingIds} status={officeStatus} />
+        <Office3D
+          workingIds={workingIds}
+          status={officeStatus}
+          stage={runningJob?.stage}
+          progress={runningJob?.progress}
+          jobTitle={runningJob ? `${runningJob.letter} is for ${runningJob.animal}` : undefined}
+        />
         <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0, marginTop: 10 }}>
           Drag to orbit · scroll to zoom · agents glow when the real pipeline has them working. 3D floor adapted from{" "}
           <a href="https://github.com/Gaurav2693/ai-office" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>

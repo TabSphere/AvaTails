@@ -6,16 +6,20 @@ import { OFFICE_AGENTS } from "./officeScene";
 interface Office3DProps {
   workingIds: string[];
   status: string;
+  stage?: string;
+  progress?: number;
+  jobTitle?: string;
 }
 
 type SceneHandle = {
-  setWorking: (ids: string[]) => void;
+  setWorking: (ids: string[], stage?: string | null) => void;
+  setJob: (title: string | null, pct: number, stage?: string | null) => void;
   setTime: (minutes: number) => void;
   toggleCyberpunk: () => boolean;
   destroy: () => void;
 };
 
-export default function Office3D({ workingIds, status }: Office3DProps) {
+export default function Office3D({ workingIds, status, stage, progress, jobTitle }: Office3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<SceneHandle | null>(null);
   const [ready, setReady] = useState(false);
@@ -49,21 +53,29 @@ export default function Office3D({ workingIds, status }: Office3DProps) {
     };
   }, []);
 
-  // Forward working agents to the scene
+  // Forward working agents + current stage to the scene
   useEffect(() => {
-    sceneRef.current?.setWorking(workingIds);
-  }, [workingIds, ready]);
+    sceneRef.current?.setWorking(workingIds, stage ?? null);
+  }, [workingIds, stage, ready]);
 
-  // Real clock
+  // Mission-control board
   useEffect(() => {
-    const tick = () =>
-      setClockText(
-        new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      );
+    sceneRef.current?.setJob(jobTitle ?? null, progress ?? 0, stage ?? null);
+  }, [jobTitle, progress, stage, ready]);
+
+  // Real clock — scene time follows the visitor's clock
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      setClockText(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      sceneRef.current?.setTime(now.getHours() * 60 + now.getMinutes());
+    };
     tick();
     const id = setInterval(tick, 15000);
     return () => clearInterval(id);
   }, []);
+
+  const active = workingIds.length > 0;
 
   return (
     <div className="office-wrap">
@@ -73,12 +85,19 @@ export default function Office3D({ workingIds, status }: Office3DProps) {
 
       {/* top-left: live status */}
       <div className="office-status">
-        <span className={`office-dot ${workingIds.length ? "on" : ""}`} />
+        <span className={`office-dot ${active ? "on" : ""}`} />
         {status}
       </div>
 
       {/* top-right: clock */}
       <div className="office-clock">{clockText}</div>
+
+      {/* progress bar above the HUD while a job runs */}
+      {active && (
+        <div className="office-progress">
+          <div style={{ width: `${progress ?? 0}%` }} />
+        </div>
+      )}
 
       {/* bottom bar: legend + lights */}
       <div className="office-hud">

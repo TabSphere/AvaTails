@@ -210,3 +210,13 @@ button.office-lights {
   font-size: 9.5px; letter-spacing: 1px; font-weight: 700;
 }
 button.office-lights:hover { border-color: var(--accent); }
+.office-progress {
+  position: absolute; bottom: 56px; left: 14px; right: 14px; z-index: 10;
+  height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08);
+  overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.office-progress > div {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.5s ease;
+}
