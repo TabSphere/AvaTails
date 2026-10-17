@@ -80,7 +80,7 @@ export default function Office3D({ workingIds, status, stage, progress, jobTitle
   return (
     <div className="office-wrap">
       <div ref={mountRef} className="office-canvas" />
-      {!ready && !error && <div className="office-loading">🏭 Building the factory floor…</div>}
+      {!ready && !error && <div className="office-loading">🖥️ Powering up the AI data centre…</div>}
       {error && <div className="office-loading">⚠️ 3D floor failed to start: {error}</div>}
 
       {/* top-left: live status */}

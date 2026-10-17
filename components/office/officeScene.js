@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// AvaTails 3D Factory Floor
+// AvaTails 3D Factory Floor — v6 "AI DATA CENTRE"
 // Adapted from Gaurav2693/ai-office (MIT License) — https://github.com/Gaurav2693/ai-office
-// © Gaurav Mishra. Reworked for AvaTails: 6 real agents driven by the live job queue.
+// © Gaurav Mishra. Reworked for AvaTails: 6 real agents driven by the live job queue,
+// re-skinned as the inside of an AI data centre (server aisles, cable trays, uplinks).
 // ─────────────────────────────────────────────────────────────────────────────
 import * as THREE from "three";
 
@@ -15,10 +16,10 @@ export const OFFICE_AGENTS = [
 ];
 
 const CHAT_PHRASES = [
-  "episode shipped 📦", "render done ✅", "queue's empty 😴", "new script today?",
-  "voiceover sounds great 🎙️", "26 letters to go!", "kids will love this one 🐊",
-  "music bed mixed 🎵", "thumbnails looking cute", "crossfades are smooth 🎬",
-  "A is for Alligator!", "who queued 10 jobs? 😅",
+  "GPU cluster at 98% 🔥", "cooling nominal ❄️", "latency 12ms ⚡", "episode shipped 📦",
+  "render done ✅", "queue's empty 😴", "new script today?", "voiceover sounds great 🎙️",
+  "26 letters to go!", "kids will love this one 🐊", "crossfades are smooth 🎬",
+  "who queued 10 jobs? 😅", "failover test passed 💚", "token budget check 📊",
 ];
 
 class RNG {
@@ -35,8 +36,8 @@ export function createOfficeScene(container) {
 
   // ── Scene / camera / renderer ────────────────────────────────────────────
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x060b18);
-  scene.fog = new THREE.FogExp2(0x060b18, 0.004);
+  scene.background = new THREE.Color(0x04070f);
+  scene.fog = new THREE.FogExp2(0x04070f, 0.004);
 
   const camera = new THREE.PerspectiveCamera(30, W() / H(), 0.1, 500);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -75,78 +76,108 @@ export function createOfficeScene(container) {
   window.addEventListener("pointerup", onUp);
   dom.addEventListener("wheel", onWheel, { passive: false });
 
-  // ── Lights ───────────────────────────────────────────────────────────────
-  const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+  // ── Lights (cool data-centre white/blue) ─────────────────────────────────
+  const ambient = new THREE.AmbientLight(0xdce8ff, 0.55);
   scene.add(ambient);
-  const sun = new THREE.DirectionalLight(0xfff8f0, 1.1);
+  const sun = new THREE.DirectionalLight(0xe8f2ff, 1.1);
   sun.position.set(12, 20, 10);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -18; sun.shadow.camera.right = 18;
   sun.shadow.camera.top = 18; sun.shadow.camera.bottom = -18;
   scene.add(sun);
-  const hemi = new THREE.HemisphereLight(0xdde8f0, 0xb0bec5, 0.35);
+  const hemi = new THREE.HemisphereLight(0xcfe0ff, 0x24304f, 0.35);
   scene.add(hemi);
 
-  // ── Materials / office shell ─────────────────────────────────────────────
+  // ── Materials / shell ────────────────────────────────────────────────────
   const office = new THREE.Group();
   scene.add(office);
   const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
   const MB = (c) => new THREE.MeshBasicMaterial({ color: c });
 
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(26, 0.15, 18), M(0xe8e8e8));
+  // Raised data-centre floor: dark base + glowing cyan grid
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(26, 0.15, 18), M(0x0a0f1c));
   floor.position.y = -0.075; floor.receiveShadow = true; office.add(floor);
-  const carpet = new THREE.Mesh(new THREE.BoxGeometry(14, 0.02, 10), M(0xd0d8e0));
-  carpet.position.set(0, 0.01, 0); carpet.receiveShadow = true; office.add(carpet);
+  const gridCv = document.createElement("canvas"); gridCv.width = 256; gridCv.height = 256;
+  const gc = gridCv.getContext("2d");
+  gc.fillStyle = "#0a0f1c"; gc.fillRect(0, 0, 256, 256);
+  gc.strokeStyle = "rgba(24,255,255,0.10)"; gc.lineWidth = 2;
+  for (let i = 0; i <= 256; i += 32) {
+    gc.beginPath(); gc.moveTo(i, 0); gc.lineTo(i, 256); gc.stroke();
+    gc.beginPath(); gc.moveTo(0, i); gc.lineTo(256, i); gc.stroke();
+  }
+  gc.strokeStyle = "rgba(24,255,255,0.22)"; gc.lineWidth = 3;
+  gc.strokeRect(1, 1, 254, 254);
+  const gridTex = new THREE.CanvasTexture(gridCv);
+  gridTex.wrapS = gridTex.wrapT = THREE.RepeatWrapping;
+  gridTex.repeat.set(6.5, 4.5);
+  const gridFloor = new THREE.Mesh(new THREE.PlaneGeometry(26, 18), new THREE.MeshBasicMaterial({ map: gridTex, transparent: true, opacity: 0.9 }));
+  gridFloor.rotation.x = -Math.PI / 2; gridFloor.position.y = 0.005; office.add(gridFloor);
 
-  // ── Room shell: back + side walls, beams, skirting, brand stripe ──────────
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(26, 4.5, 0.2), M(0x1a2140));
+  // ── Room shell: walls, beams, skirting, brand stripe ─────────────────────
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(26, 4.5, 0.2), M(0x0d1428));
   wall.position.set(0, 2.25, -8.9); office.add(wall);
   [-13, 13].forEach((wx) => {
-    const side = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4.5, 18), M(0x212a52));
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4.5, 18), M(0x101a33));
     side.position.set(wx, 2.25, 0); office.add(side);
   });
   // ceiling beams (suggest a ceiling without blocking top-down orbit views)
   [-4, 0, 4].forEach((bz) => {
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(26, 0.16, 0.4), M(0x141a33));
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(26, 0.16, 0.4), M(0x0a0f1e));
     beam.position.set(0, 4.5, bz); office.add(beam);
   });
   // skirting boards
-  const skirt = new THREE.Mesh(new THREE.BoxGeometry(26, 0.18, 0.06), M(0xe8ecf0));
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(26, 0.18, 0.06), M(0x1a2440));
   skirt.position.set(0, 0.09, -8.77); office.add(skirt);
   [-12.87, 12.87].forEach((wx) => {
-    const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 18), M(0xe8ecf0));
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 18), M(0x1a2440));
     s.position.set(wx, 0.09, 0); office.add(s);
   });
-  // brand stripe along the back wall
+  // amber brand stripe + cyan accent lines along the back wall
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(26, 0.14, 0.04), MB(0xffb020));
   stripe.position.set(0, 0.55, -8.78); office.add(stripe);
+  [0.28, 4.1].forEach((wy) => {
+    const line = new THREE.Mesh(new THREE.BoxGeometry(26, 0.05, 0.04), MB(0x18ffff));
+    line.position.set(0, wy, -8.78); office.add(line);
+  });
+  [-12.87, 12.87].forEach((wx) => {
+    const line = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 18), MB(0x18ffff));
+    line.position.set(wx, 4.1, 0); office.add(line);
+  });
 
-  // Daylight windows flanking the sign
-  [-8.5, 8.5].forEach((wx) => {
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.9, 0.08), M(0x0f1428));
+  // Uplink status displays flanking the sign (data centres have no windows)
+  [-8.5, 8.5].forEach((wx, idx) => {
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.9, 0.08), M(0x0a0f1e));
     frame.position.set(wx, 2.7, -8.76); office.add(frame);
-    const paneCv = document.createElement("canvas"); paneCv.width = 128; paneCv.height = 80;
-    const pc = paneCv.getContext("2d");
-    const grad = pc.createLinearGradient(0, 0, 0, 80);
-    grad.addColorStop(0, "#7fb2ff"); grad.addColorStop(1, "#dcecff");
-    pc.fillStyle = grad; pc.fillRect(0, 0, 128, 80);
-    pc.strokeStyle = "#0f1428"; pc.lineWidth = 5;
-    pc.beginPath(); pc.moveTo(64, 0); pc.lineTo(64, 80); pc.moveTo(0, 40); pc.lineTo(128, 40); pc.stroke();
-    const paneTex = new THREE.CanvasTexture(paneCv); paneTex.colorSpace = THREE.SRGBColorSpace;
-    const pane = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1.7), new THREE.MeshBasicMaterial({ map: paneTex }));
-    pane.position.set(wx, 2.7, -8.71); office.add(pane);
+    const dispCv = document.createElement("canvas"); dispCv.width = 128; dispCv.height = 80;
+    const dc = dispCv.getContext("2d");
+    dc.fillStyle = "#060b16"; dc.fillRect(0, 0, 128, 80);
+    dc.strokeStyle = "#18FFFF"; dc.lineWidth = 2; dc.beginPath();
+    for (let i = 0; i <= 16; i++) {
+      const x = 6 + i * 7.2;
+      const y = 44 + Math.sin(i * 1.3 + idx * 2) * 16 + Math.cos(i * 0.7) * 8;
+      if (i === 0) dc.moveTo(x, y); else dc.lineTo(x, y);
+    }
+    dc.stroke();
+    dc.fillStyle = "rgba(61,220,151,0.8)";
+    for (let i = 0; i < 8; i++) dc.fillRect(8 + i * 15, 64 - (i * 7 + idx * 11) % 22, 9, 22);
+    dc.font = "bold 9px monospace"; dc.fillStyle = "#18FFFF";
+    dc.fillText(idx === 0 ? "UPLINK A" : "UPLINK B", 8, 12);
+    dc.fillStyle = "#3DDC97"; dc.fillText("● LIVE", 92, 12);
+    const dispTex = new THREE.CanvasTexture(dispCv); dispTex.colorSpace = THREE.SRGBColorSpace;
+    const disp = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1.7), new THREE.MeshBasicMaterial({ map: dispTex }));
+    disp.position.set(wx, 2.7, -8.71); office.add(disp);
   });
 
   // Back wall with AVATAILS sign
   const signCv = document.createElement("canvas"); signCv.width = 512; signCv.height = 96;
   const signCx = signCv.getContext("2d");
-  signCx.fillStyle = "#1a2140"; signCx.fillRect(0, 0, 512, 96);
+  signCx.fillStyle = "#0d1428"; signCx.fillRect(0, 0, 512, 96);
   signCx.font = "bold 52px 'Segoe UI', sans-serif"; signCx.textAlign = "center";
-  signCx.fillStyle = "#F3F5FF"; signCx.fillText("AVA", 180, 66);
-  signCx.fillStyle = "#FFB020"; signCx.fillText("TAILS", 300, 66);
-  signCx.font = "20px 'Segoe UI', sans-serif"; signCx.fillStyle = "#9AA3C7";
-  signCx.fillText("🐊  F A C T O R Y", 396, 62);
+  signCx.fillStyle = "#F3F5FF"; signCx.fillText("AVA", 170, 66);
+  signCx.fillStyle = "#FFB020"; signCx.fillText("TAILS", 292, 66);
+  signCx.font = "20px 'Segoe UI', sans-serif"; signCx.fillStyle = "#18FFFF";
+  signCx.fillText("A I   W O R K S", 416, 62);
   const signTex = new THREE.CanvasTexture(signCv); signTex.colorSpace = THREE.SRGBColorSpace;
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 1.5), new THREE.MeshBasicMaterial({ map: signTex }));
   sign.position.set(0, 3.1, -8.78); office.add(sign);
@@ -164,7 +195,7 @@ export function createOfficeScene(container) {
     if (title) {
       c.fillStyle = "#FFB020"; c.font = "bold 32px 'Segoe UI', sans-serif";
       c.fillText(title.toUpperCase().slice(0, 26), 256, 46);
-      c.fillStyle = "#9AA3C7"; c.font = "19px 'Segoe UI', sans-serif";
+      c.fillStyle = "#18FFFF"; c.font = "19px 'Segoe UI', sans-serif";
       c.fillText((stage || "working").toUpperCase().slice(0, 34), 256, 74);
       c.fillStyle = "#20263F"; c.fillRect(56, 92, 380, 18);
       c.fillStyle = "#3DDC97";
@@ -173,7 +204,7 @@ export function createOfficeScene(container) {
       c.fillText(Math.round(pct || 0) + "%", 466, 107);
     } else {
       c.fillStyle = "#3a4270"; c.font = "bold 25px 'Segoe UI', sans-serif";
-      c.fillText("QUEUE EMPTY — AGENTS STANDING BY", 256, 60);
+      c.fillText("QUEUE EMPTY — CLUSTER IDLE", 256, 60);
       c.fillStyle = "#9AA3C7"; c.font = "17px 'Segoe UI', sans-serif";
       c.fillText("enqueue jobs to start production", 256, 92);
     }
@@ -192,25 +223,111 @@ export function createOfficeScene(container) {
   function drawClock(min) {
     const c = clockCv.getContext("2d");
     c.clearRect(0, 0, 96, 96);
-    c.fillStyle = "#f4f7ff"; c.beginPath(); c.arc(48, 48, 44, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = "#1a2140"; c.lineWidth = 4; c.stroke();
+    c.fillStyle = "#0d1428"; c.beginPath(); c.arc(48, 48, 44, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "#18FFFF"; c.lineWidth = 4; c.stroke();
+    c.fillStyle = "#9AA3C7";
+    for (let h = 0; h < 12; h++) {
+      const a = h * (Math.PI / 6);
+      c.fillRect(48 + Math.cos(a) * 36 - 1.5, 48 + Math.sin(a) * 36 - 1.5, 3, 3);
+    }
     const hr = ((min / 60) % 12) * (Math.PI / 6) - Math.PI / 2;
     const mn = (min % 60) * (Math.PI / 30) - Math.PI / 2;
-    c.lineWidth = 5; c.beginPath(); c.moveTo(48, 48); c.lineTo(48 + Math.cos(hr) * 22, 48 + Math.sin(hr) * 22); c.stroke();
-    c.lineWidth = 3; c.beginPath(); c.moveTo(48, 48); c.lineTo(48 + Math.cos(mn) * 32, 48 + Math.sin(mn) * 32); c.stroke();
+    c.strokeStyle = "#F3F5FF";
+    c.lineWidth = 5; c.beginPath(); c.moveTo(48, 48); c.lineTo(48 + Math.cos(hr) * 20, 48 + Math.sin(hr) * 20); c.stroke();
+    c.lineWidth = 3; c.beginPath(); c.moveTo(48, 48); c.lineTo(48 + Math.cos(mn) * 31, 48 + Math.sin(mn) * 31); c.stroke();
     c.fillStyle = "#ffb020"; c.beginPath(); c.arc(48, 48, 4, 0, Math.PI * 2); c.fill();
     clockTex.needsUpdate = true;
   }
 
-  // Ceiling tube lights (visual only)
+  // Ceiling tube lights (visual only, cool white)
   for (let x = -8; x <= 8; x += 8) {
-    const tube = new THREE.Mesh(new THREE.BoxGeometry(3, 0.05, 0.6), MB(0xf0f4ff));
+    const tube = new THREE.Mesh(new THREE.BoxGeometry(3, 0.05, 0.6), MB(0xe8f4ff));
     tube.position.set(x, 4.4, 0); office.add(tube);
-    const pl = new THREE.PointLight(0xffffff, 0.35, 12, 1.8);
+    const pl = new THREE.PointLight(0xcfe8ff, 0.35, 12, 1.8);
     pl.position.set(x, 4.1, 0); office.add(pl);
     tube.userData.isTube = true; tube.userData.light = pl;
   }
   const tubes = office.children.filter((c) => c.userData.isTube);
+
+  // ── Server racks with blinking LED fronts ────────────────────────────────
+  const racks = [];
+  function makeRackFront() {
+    const cv = document.createElement("canvas"); cv.width = 64; cv.height = 160;
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const ctx = cv.getContext("2d");
+    const leds = [];
+    for (let r = 0; r < 20; r++) {
+      for (let i = 0; i < 3; i++) {
+        leds.push({
+          x: 8 + i * 8, y: 6 + r * 7.6,
+          on: Math.random() > 0.4,
+          c: ["#3DDC97", "#18FFFF", "#FFB020"][Math.floor(Math.random() * 3)],
+          blink: Math.random() > 0.55,
+        });
+      }
+    }
+    const draw = () => {
+      ctx.fillStyle = "#070b16"; ctx.fillRect(0, 0, 64, 160);
+      ctx.fillStyle = "#101728";
+      for (let r = 0; r < 20; r++) ctx.fillRect(2, 4 + r * 7.6, 60, 6);
+      leds.forEach((L) => {
+        if (L.blink && Math.random() > 0.5) L.on = !L.on;
+        ctx.fillStyle = L.on ? L.c : "#1a2338";
+        ctx.fillRect(L.x, L.y + 1, 3, 2.4);
+      });
+      ctx.fillStyle = "#24304f"; ctx.fillRect(36, 4, 24, 152);
+      ctx.fillStyle = "#0d1424";
+      for (let r = 0; r < 20; r++) ctx.fillRect(38, 5 + r * 7.6, 20, 4);
+      tex.needsUpdate = true;
+    };
+    draw();
+    return { tex, draw };
+  }
+  function buildRack(x, z, ry) {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.6, 0.9), M(0x0a0f1e));
+    body.position.set(x, 1.3, z); body.rotation.y = ry; body.castShadow = true; office.add(body);
+    const rf = makeRackFront();
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.4), new THREE.MeshBasicMaterial({ map: rf.tex }));
+    front.position.set(x + Math.sin(ry) * 0.46, 1.3, z + Math.cos(ry) * 0.46);
+    front.rotation.y = ry; office.add(front);
+    const st = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.12), MB(0x18ffff));
+    st.position.set(x, 2.66, z); office.add(st);
+    racks.push(rf);
+  }
+  // Cold aisles along both side walls (skipping the status screen zone on the left)
+  [-6.5, -4, -1.5, 1, 6.5].forEach((z) => buildRack(-12.1, z, Math.PI / 2));
+  [-6.5, -4, -1.5, 1, 3.5, 6.5].forEach((z) => buildRack(12.1, z, -Math.PI / 2));
+
+  // Overhead cable trays
+  [-11, 11].forEach((tx) => {
+    const tray = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 17), M(0x18223c));
+    tray.position.set(tx, 4.35, 0); office.add(tray);
+  });
+  [-4.2, 4.2].forEach((tz) => {
+    const tray = new THREE.Mesh(new THREE.BoxGeometry(22.6, 0.08, 0.6), M(0x18223c));
+    tray.position.set(0, 4.35, tz); office.add(tray);
+  });
+
+  // Live data packets flowing along the trays
+  const packets = [];
+  const LANES = [
+    { axis: "z", fixed: -11, dir: 1 },  // left tray, -z → +z
+    { axis: "z", fixed: 11, dir: -1 },  // right tray, +z → -z
+    { axis: "x", fixed: -4.2, dir: 1 }, // back cross tray
+    { axis: "x", fixed: 4.2, dir: -1 }, // front cross tray
+  ];
+  for (let i = 0; i < 16; i++) {
+    const lane = LANES[i % 4];
+    const pkt = new THREE.Mesh(
+      new THREE.BoxGeometry(0.09, 0.09, 0.09),
+      MB(i % 3 === 0 ? 0xffb020 : 0x18ffff)
+    );
+    const t = rng.r(-8, 8);
+    if (lane.axis === "z") pkt.position.set(lane.fixed, 4.25, t);
+    else pkt.position.set(t, 4.25, lane.fixed);
+    office.add(pkt);
+    packets.push({ mesh: pkt, lane, t, speed: rng.r(1.5, 3.5) });
+  }
 
   // ── Characters ───────────────────────────────────────────────────────────
   function buildChar(agent, standing) {
@@ -382,7 +499,7 @@ export function createOfficeScene(container) {
     return { sprite: sp, draw };
   }
 
-  // ── Desks ────────────────────────────────────────────────────────────────
+  // ── Operator consoles (desks) ────────────────────────────────────────────
   const screenData = [];
   const agentData = [];
 
@@ -391,20 +508,23 @@ export function createOfficeScene(container) {
     const g = new THREE.Group();
     // legs
     [[-0.65, -0.3], [0.65, -0.3], [-0.65, 0.3], [0.65, 0.3]].forEach(([lx, lz]) => {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.7, 0.06), M(0xbbccdd));
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.7, 0.06), M(0x2a3450));
       leg.position.set(x + lx, 0.35, z + lz); office.add(leg);
     });
-    const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.75), M(0xe8ecf0));
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.75), M(0x131a2e));
     top.position.set(x, 0.72, z); top.castShadow = true; top.receiveShadow = true; office.add(top);
-    const front = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.38, 0.03), M(0xdde4ec));
+    const front = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.38, 0.03), M(0x0f1526));
     front.position.set(x, 0.5, z + faceSign * -0.36); office.add(front);
+    // cyan under-desk LED strip
+    const led = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.02, 0.02), MB(0x18ffff));
+    led.position.set(x, 0.695, z + faceSign * 0.37); office.add(led);
 
     // monitor (screen faces the char)
-    const monBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.02, 0.12), M(0xaabbcc));
+    const monBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.02, 0.12), M(0x2a3450));
     monBase.position.set(x, 0.75, z + faceSign * -0.1); office.add(monBase);
-    const monStand = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.03), M(0xaabbcc));
+    const monStand = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.03), M(0x2a3450));
     monStand.position.set(x, 0.86, z + faceSign * -0.1); office.add(monStand);
-    const monBody = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.52, 0.03), M(0x2a2a2a));
+    const monBody = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.52, 0.03), M(0x0a0e1a));
     monBody.position.set(x, 1.1, z + faceSign * -0.1); office.add(monBody);
     const cv = document.createElement("canvas"); cv.width = 128; cv.height = 80;
     const tex = new THREE.CanvasTexture(cv);
@@ -416,17 +536,17 @@ export function createOfficeScene(container) {
     screenData.push({ canvas: cv, ctx: cv.getContext("2d"), tex, type: agent.screen, hex: agent.hex });
 
     // keyboard + mug
-    const kb = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 0.13), M(0x333333));
+    const kb = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 0.13), M(0x1a2236));
     kb.position.set(x, 0.75, z + faceSign * 0.18); office.add(kb);
     const mug = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.06), M(agent.color));
     mug.position.set(x + 0.55, 0.78, z + faceSign * 0.15); office.add(mug);
 
     // chair
-    const cSeat = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.4), M(0x37474f));
+    const cSeat = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.4), M(0x1c2742));
     cSeat.position.set(x, 0.32, z + faceSign * 0.7); office.add(cSeat);
-    const cBack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.04), M(0x37474f));
+    const cBack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.04), M(0x1c2742));
     cBack.position.set(x, 0.6, z + faceSign * 0.9); office.add(cBack);
-    const cLeg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), M(0x90a4ae));
+    const cLeg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), M(0x2a3450));
     cLeg.position.set(x, 0.15, z + faceSign * 0.7); office.add(cLeg);
 
     // colored desk glow (on while working / in dark)
@@ -458,28 +578,43 @@ export function createOfficeScene(container) {
     void g;
   }
 
-  // 2 rows × 3 desks
+  // 2 rows × 3 consoles in the operations pit
   const deskX = [-6.5, 0, 6.5];
   OFFICE_AGENTS.forEach((agent, i) => {
     if (i < 3) buildDesk(deskX[i], -3.2, agent, 1);   // back row, chars face -z (toward camera)
     else buildDesk(deskX[i - 3], 3.2, agent, -1);     // front row, chars face +z
   });
 
-  // ── Props: water cooler, lounge, plants, papers ──────────────────────────
-  const wcBase = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.55, 0.28), M(0xe0e0e0));
-  wcBase.position.set(-10.5, 0.275, 2); office.add(wcBase);
-  const wcTank = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.25, 0.22), M(0x90caf9));
-  wcTank.position.set(-10.5, 0.675, 2); office.add(wcTank);
+  // ── Props: CRAC cooling unit, visitor lounge, plants ─────────────────────
+  // CRAC unit (replaces the water cooler — data centres need serious cooling)
+  const crac = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.9, 0.6), M(0x14203a));
+  crac.position.set(-10.8, 0.95, 2); crac.castShadow = true; office.add(crac);
+  const cracCv = document.createElement("canvas"); cracCv.width = 64; cracCv.height = 128;
+  const crc = cracCv.getContext("2d");
+  crc.fillStyle = "#0d1526"; crc.fillRect(0, 0, 64, 128);
+  crc.fillStyle = "#1c2a48";
+  for (let i = 0; i < 10; i++) crc.fillRect(8, 14 + i * 9, 48, 5);
+  crc.fillStyle = "#18FFFF"; crc.font = "bold 8px monospace";
+  crc.fillText("CRAC", 20, 10);
+  crc.fillStyle = "#3DDC97"; crc.fillRect(52, 4, 6, 4);
+  const cracTex = new THREE.CanvasTexture(cracCv); cracTex.colorSpace = THREE.SRGBColorSpace;
+  const cracFront = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.8), new THREE.MeshBasicMaterial({ map: cracTex }));
+  cracFront.position.set(-10.8, 0.95, 2.31); office.add(cracFront);
+  const coolGlow = new THREE.PointLight(0x18ffff, 0.25, 4, 2);
+  coolGlow.position.set(-10.8, 1.9, 2.5); office.add(coolGlow);
 
-  const sofa = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 0.7), M(0x274060));
+  // Visitor lounge corner
+  const sofa = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 0.7), M(0x14233f));
   sofa.position.set(10, 0.2, 4); sofa.castShadow = true; office.add(sofa);
-  const sofaBack = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 0.15), M(0x274060));
+  const sofaBack = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 0.15), M(0x14233f));
   sofaBack.position.set(10, 0.6, 4.3); office.add(sofaBack);
-  const table = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 0.5), M(0xdde4ec));
+  const table = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 0.5), M(0x1a2440));
   table.position.set(10, 0.175, 2.9); office.add(table);
+  const rug = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.02, 2.8), M(0x0e1a33));
+  rug.position.set(10, 0.02, 3.4); rug.receiveShadow = true; office.add(rug);
 
   function addPlant(px, pz) {
-    const pot = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.22, 0.28), M(0xeceff1));
+    const pot = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.22, 0.28), M(0x1a2440));
     pot.position.set(px, 0.11, pz); pot.castShadow = true; office.add(pot);
     for (let i = 0; i < 3; i++) {
       const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.1), M(0x3ddc97));
@@ -489,51 +624,30 @@ export function createOfficeScene(container) {
   }
   addPlant(-11.5, -7.5); addPlant(11.5, -7.5); addPlant(-11.5, 6.5);
 
-  // Lounge rug
-  const rug = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.02, 2.8), M(0x3a2447));
-  rug.position.set(10, 0.02, 3.4); rug.receiveShadow = true; office.add(rug);
-
-  // Whiteboard: A–Z production tracker (left wall)
+  // A–Z production tracker as a glowing status screen (left wall)
+  const wbFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.3, 3.6), M(0x0a0f1e));
+  wbFrame.position.set(-12.8, 2.3, 3.5); office.add(wbFrame);
   const wbCv = document.createElement("canvas"); wbCv.width = 256; wbCv.height = 160;
   const wbc = wbCv.getContext("2d");
-  wbc.fillStyle = "#f4f7ff"; wbc.fillRect(0, 0, 256, 160);
-  wbc.fillStyle = "#1a2140"; wbc.font = "bold 15px 'Segoe UI', sans-serif"; wbc.textAlign = "left";
+  wbc.fillStyle = "#060b16"; wbc.fillRect(0, 0, 256, 160);
+  wbc.fillStyle = "#18FFFF"; wbc.font = "bold 15px 'Segoe UI', sans-serif"; wbc.textAlign = "left";
   wbc.fillText("A-Z PRODUCTION", 12, 22);
+  wbc.fillStyle = "#3DDC97"; wbc.font = "9px monospace"; wbc.textAlign = "right";
+  wbc.fillText("● LIVE", 246, 20);
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   wbc.textAlign = "center";
   for (let i = 0; i < 26; i++) {
     const col = i % 7, row = Math.floor(i / 7);
     const lx = 16 + col * 33, ly = 44 + row * 28;
-    wbc.fillStyle = "#c3cbe8"; wbc.fillRect(lx - 4, ly - 16, 26, 22);
-    wbc.fillStyle = "#1a2140"; wbc.font = "bold 14px 'Segoe UI', sans-serif";
+    wbc.fillStyle = "#101a30"; wbc.fillRect(lx - 4, ly - 16, 26, 22);
+    wbc.strokeStyle = "rgba(24,255,255,0.25)"; wbc.lineWidth = 1;
+    wbc.strokeRect(lx - 4, ly - 16, 26, 22);
+    wbc.fillStyle = "#7fd4ff"; wbc.font = "bold 14px 'Segoe UI', sans-serif";
     wbc.fillText(letters[i], lx + 9, ly);
   }
   const wbTex = new THREE.CanvasTexture(wbCv); wbTex.colorSpace = THREE.SRGBColorSpace;
   const wb = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.1), new THREE.MeshBasicMaterial({ map: wbTex }));
-  wb.position.set(-12.75, 2.3, -2); wb.rotation.y = Math.PI / 2; office.add(wb);
-
-  // Bookshelf with colorful binders (right wall)
-  const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.2, 2.6), M(0x2c3355));
-  shelf.position.set(12.7, 1.1, -3); office.add(shelf);
-  const bookColors = [0xffb020, 0x7c4dff, 0x00e676, 0xe040fb, 0x448aff, 0xff9100, 0xff5d8f];
-  for (let row = 0; row < 3; row++) {
-    for (let i = 0; i < 8; i++) {
-      const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.42, 0.22), M(bookColors[(row * 8 + i) % 7]));
-      b.position.set(12.48, 0.55 + row * 0.62, -4 + i * 0.28);
-      office.add(b);
-    }
-  }
-
-  const papers = [];
-  for (let i = 0; i < 10; i++) {
-    const p = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.14, 0.18),
-      new THREE.MeshBasicMaterial({ color: [0xffb020, 0x7c4dff, 0x00e676, 0xe040fb, 0x448aff][i % 5], side: THREE.DoubleSide, transparent: true, opacity: 0.8 })
-    );
-    p.position.set(rng.r(-10, 10), rng.r(1, 3.5), rng.r(-7, 7));
-    office.add(p);
-    papers.push({ mesh: p, dx: rng.r(-0.15, 0.15), dz: rng.r(-0.15, 0.15), baseY: p.position.y, bobSp: rng.r(0.5, 1.5), ph: rng.r(0, 6), tum: rng.r(0.5, 2) });
-  }
+  wb.position.set(-12.75, 2.3, 3.5); wb.rotation.y = Math.PI / 2; office.add(wb);
 
   // ── Chat bubbles ─────────────────────────────────────────────────────────
   const bubbles = [];
@@ -555,7 +669,7 @@ export function createOfficeScene(container) {
 
   // ── Behavior: wander, chat, work ─────────────────────────────────────────
   const walkDestinations = [
-    { x: -10.5, z: 1 }, { x: 0, z: 0 }, { x: 10, z: 2.5 }, { x: -11, z: -6.5 }, { x: 9, z: -6 },
+    { x: -10.5, z: 0.5 }, { x: 0, z: 0 }, { x: 10, z: 2.5 }, { x: -11, z: -6.5 }, { x: 9, z: -6 },
   ];
 
   function updateWalkers(delta, elapsed) {
@@ -643,30 +757,32 @@ export function createOfficeScene(container) {
     }
   }
 
-  // ── Time of day / cyberpunk ──────────────────────────────────────────────
+  // ── Time of day / lights-off mode ────────────────────────────────────────
+  // Data centres are artificially lit — brightness stays high around the clock.
   let timeOfDay = 600;
   let cyberpunk = false;
-  const nightBg = new THREE.Color(0x060b18);
-  const dayBg = new THREE.Color(0x16244a);
+  const nightBg = new THREE.Color(0x04070f);
+  const dayBg = new THREE.Color(0x0a1230);
   const bgTmp = new THREE.Color();
 
   function updateTime(min) {
     timeOfDay = min;
     drawClock(min);
     const rawDay = Math.max(0, Math.sin(((min - 360) / 720) * Math.PI)); // 6:00–18:00
-    const day = 0.45 + rawDay * 0.55; // studio stays bright and readable around the clock
-    sun.intensity = cyberpunk ? 0.05 : 0.25 + day * 1.1;
-    sun.color.setHSL(0.1, 0.45, 0.55 + day * 0.4);
-    ambient.intensity = cyberpunk ? 0.12 : 0.38 + day * 0.4;
-    hemi.intensity = cyberpunk ? 0.05 : 0.2 + day * 0.3;
+    const day = 0.8 + rawDay * 0.2; // facility lighting never truly dims
+    sun.intensity = cyberpunk ? 0.04 : 0.2 + day * 0.9;
+    sun.color.setHSL(0.58, 0.3, 0.6 + day * 0.3);
+    ambient.intensity = cyberpunk ? 0.1 : 0.34 + day * 0.34;
+    hemi.intensity = cyberpunk ? 0.05 : 0.18 + day * 0.25;
     bgTmp.lerpColors(nightBg, cyberpunk ? nightBg : dayBg, day);
     scene.background = bgTmp;
     scene.fog.color.copy(bgTmp);
     tubes.forEach((tb) => {
-      tb.material = cyberpunk ? MB(0x223355) : MB(0xf0f4ff);
+      tb.material = cyberpunk ? MB(0x1a2a4a) : MB(0xe8f4ff);
       tb.userData.light.intensity = cyberpunk ? 0.03 : 0.25 + day * 0.2;
     });
-    const dark = cyberpunk; // only lights-off mode dims the desk glows
+    coolGlow.intensity = cyberpunk ? 0.4 : 0.25;
+    const dark = cyberpunk; // only lights-off mode dims the console glows
     agentData.forEach((ad) => {
       ad.glow.intensity = ad.working ? 0.8 : dark ? 0.22 : 0;
     });
@@ -683,7 +799,7 @@ export function createOfficeScene(container) {
       ad.working = w;
       if (changed || w) ad.label.draw(w, currentStage);
       if (w && changed) {
-        // called back to desk mid-wander
+        // called back to console mid-wander
         ad.walker.visible = false; ad.sitting.visible = true;
         ad.state = "sitting"; ad.timer = 6 + rng.r(0, 10);
         ad.label.sprite.position.set(ad.home.x, 1.85, ad.home.z);
@@ -709,18 +825,21 @@ export function createOfficeScene(container) {
     if (frame % 3 === 0) {
       screenData.forEach((sd) => { drawScreen(sd, frame); sd.tex.needsUpdate = true; });
     }
+    if (frame % 15 === 0) {
+      racks.forEach((r) => r.draw()); // LEDs blink
+    }
+    // data packets ride the cable trays
+    packets.forEach((p) => {
+      p.t += p.lane.dir * p.speed * delta;
+      if (p.t > 8) p.t = -8;
+      if (p.t < -8) p.t = 8;
+      if (p.lane.axis === "z") p.mesh.position.z = p.t;
+      else p.mesh.position.x = p.t;
+      p.mesh.rotation.y += delta * 3;
+    });
     updateWalkers(delta, elapsed);
     checkConversations();
     updateBubbles(delta);
-    papers.forEach((p) => {
-      p.mesh.position.x += p.dx * delta; p.mesh.position.z += p.dz * delta;
-      p.mesh.position.y = p.baseY + Math.sin(elapsed * p.bobSp + p.ph) * 0.25;
-      p.mesh.rotation.x += p.tum * delta; p.mesh.rotation.y += p.tum * 0.7 * delta;
-      if (p.mesh.position.x > 12) p.mesh.position.x = -12;
-      if (p.mesh.position.x < -12) p.mesh.position.x = 12;
-      if (p.mesh.position.z > 8) p.mesh.position.z = -8;
-      if (p.mesh.position.z < -8) p.mesh.position.z = 8;
-    });
     renderer.render(scene, camera);
   }
   animate();
