@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+/* ── shared types ── */
 interface Scene {
   id: number;
   line: string;
@@ -17,6 +18,7 @@ interface Episode {
   scenes: Scene[];
   videoUrl?: string;
   bytes?: number;
+  costUSD?: number;
   createdAt: string;
   status: "done" | "failed";
 }
@@ -26,6 +28,28 @@ interface Settings {
   voiceId: string;
   transitions: boolean;
   musicUrl: string;
+}
+interface QueueJob {
+  id: string;
+  letter: string;
+  animal: string;
+  status: "queued" | "running" | "done" | "failed";
+  stage?: string;
+  agents?: string[];
+  progress?: number;
+  error?: string;
+  episodeId?: string;
+  costUSD?: number;
+  createdAt: string;
+  finishedAt?: string;
+  logTail: string[];
+}
+interface QueueState {
+  jobs: QueueJob[];
+  totalEpisodes: number;
+  totalCostUSD: number;
+  updatedAt: string;
+  storage?: string;
 }
 interface HistoryEntry {
   id: string;
@@ -38,7 +62,16 @@ interface HistoryEntry {
   status: "done" | "failed";
 }
 type LogEntry = { text: string; kind: "info" | "ok" | "err" };
-type Tab = "create" | "batch" | "history" | "settings";
+type Tab = "floor" | "queue" | "create" | "history" | "settings";
+
+const AGENTS = [
+  { id: "chief", name: "Chief of Staff", role: "Runs the queue, assigns jobs", emoji: "👔" },
+  { id: "writer", name: "Scriptwriter", role: "Writes 6-scene toddler episodes", emoji: "✍️" },
+  { id: "voice", name: "Voice Artist", role: "ElevenLabs narration per scene", emoji: "🎙️" },
+  { id: "artist", name: "Illustrator", role: "Cartoon scene art (OpenAI images)", emoji: "🎨" },
+  { id: "editor", name: "Video Editor", role: "Captions, transitions, music, MP4", emoji: "🎬" },
+  { id: "publisher", name: "Publisher", role: "Saves episodes + metadata", emoji: "📦" },
+];
 
 const DEFAULT_SETTINGS: Settings = {
   scriptModel: "gpt-4o-mini",
@@ -58,9 +91,30 @@ const loadSettings = (): Settings => {
 };
 
 export default function Home() {
-  const [tab, setTab] = useState<Tab>("create");
+  const [tab, setTab] = useState<Tab>("floor");
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [queue, setQueue] = useState<QueueState | null>(null);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => setSettings(loadSettings()), []);
+
+  // Poll queue state while on floor/queue tabs — the "watch them work" feed.
+  useEffect(() => {
+    const poll = () =>
+      fetch("/api/queue")
+        .then((r) => r.json())
+        .then((d) => setQueue(d))
+        .catch(() => {});
+    poll();
+    if (tab === "floor" || tab === "queue") {
+      pollRef.current = setInterval(poll, 4000);
+      return () => {
+        if (pollRef.current) clearInterval(pollRef.current);
+      };
+    }
+    return undefined;
+  }, [tab]);
+
   const saveSettings = (s: Settings) => {
     setSettings(s);
     localStorage.setItem("avatails_settings", JSON.stringify(s));
@@ -74,25 +128,232 @@ export default function Home() {
           Ava<span>Tails</span> Factory
         </h1>
       </header>
-      <p className="subtitle">Kids animal-learning episodes — one click from letter to finished video.</p>
+      <p className="subtitle">Your AI agent team for kids animal-learning episodes — working around the clock.</p>
 
       <nav className="tabs">
-        {(["create", "batch", "history", "settings"] as Tab[]).map((t) => (
+        {(["floor", "queue", "create", "history", "settings"] as Tab[]).map((t) => (
           <button key={t} className={`tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
-            {t === "create" ? "🎬 Create" : t === "batch" ? "📚 Batch A–Z" : t === "history" ? "🗂️ History" : "⚙️ Settings"}
+            {t === "floor"
+              ? "🏭 Factory Floor"
+              : t === "queue"
+                ? "📋 Job Queue"
+                : t === "create"
+                  ? "🎬 Create"
+                  : t === "history"
+                    ? "🗂️ History"
+                    : "⚙️ Settings"}
           </button>
         ))}
       </nav>
 
+      {tab === "floor" && <FloorTab queue={queue} settings={settings} />}
+      {tab === "queue" && <QueueTab queue={queue} settings={settings} />}
       {tab === "create" && <CreateTab settings={settings} />}
-      {tab === "batch" && <BatchTab settings={settings} />}
       {tab === "history" && <HistoryTab />}
       {tab === "settings" && <SettingsTab settings={settings} onSave={saveSettings} />}
     </div>
   );
 }
 
-/* ───────────────────────── Create ───────────────────────── */
+/* ───────────────────────── Factory Floor ───────────────────────── */
+
+function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Settings }) {
+  const [triggerMsg, setTriggerMsg] = useState("");
+  const [triggering, setTriggering] = useState(false);
+
+  const runningJob = queue?.jobs.find((j) => j.status === "running");
+  const queuedCount = queue?.jobs.filter((j) => j.status === "queued").length || 0;
+  const activeAgents = new Set<string>(runningJob?.agents || []);
+
+  async function runNext() {
+    setTriggering(true);
+    setTriggerMsg("👔 Chief of Staff is dispatching the next job…");
+    try {
+      const res = await fetch("/api/queue/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings }),
+      });
+      const data = await res.json();
+      if (data.ran && !data.error) setTriggerMsg(`✅ Job done — episode ${data.episodeId} is in History.`);
+      else if (data.error) setTriggerMsg(`❌ ${data.error}`);
+      else setTriggerMsg("💤 Queue is empty — add jobs in the Job Queue tab.");
+    } catch (e) {
+      setTriggerMsg(`❌ ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setTriggering(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="stat-strip">
+        <div className="stat">
+          <div className="stat-v">{queuedCount}</div>
+          <div className="stat-k">jobs queued</div>
+        </div>
+        <div className="stat">
+          <div className="stat-v">{runningJob ? 1 : 0}</div>
+          <div className="stat-k">running now</div>
+        </div>
+        <div className="stat">
+          <div className="stat-v">{queue?.totalEpisodes ?? 0}</div>
+          <div className="stat-k">episodes made</div>
+        </div>
+        <div className="stat">
+          <div className="stat-v">${(queue?.totalCostUSD ?? 0).toFixed(2)}</div>
+          <div className="stat-k">est. spend</div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>The team</h2>
+        <div className="agent-grid">
+          {AGENTS.map((a) => {
+            const working = activeAgents.has(a.id);
+            return (
+              <div key={a.id} className={`agent-card ${working ? "working" : ""}`}>
+                <div className="agent-emoji">{a.emoji}</div>
+                <div className="agent-name">{a.name}</div>
+                <div className="agent-role">{a.role}</div>
+                <div className={`agent-status ${working ? "on" : ""}`}>
+                  <span className="dot" />
+                  {working ? "Working…" : "Idle"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {runningJob && (
+        <div className="card">
+          <h2>🔴 Live now</h2>
+          <div className="scene-row">
+            <div className="thumb placeholder">{runningJob.letter}</div>
+            <div className="line">
+              <strong>
+                {runningJob.letter} is for {runningJob.animal}
+              </strong>
+              <div style={{ color: "var(--muted)", fontSize: 12 }}>stage: {runningJob.stage || "starting"}</div>
+            </div>
+            <div className="status">{runningJob.progress ?? 0}%</div>
+          </div>
+          <div className="progress">
+            <div className="progress-bar" style={{ width: `${runningJob.progress ?? 0}%` }} />
+          </div>
+          <div className="log" style={{ marginTop: 12 }}>
+            {(runningJob.logTail || []).map((l, i) => (
+              <div key={i}>• {l}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <h2>Foreman controls</h2>
+        <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0 }}>
+          The cron worker (every 10 min on Vercel Pro) picks up queued jobs automatically — that’s the “while you
+          sleep” shift. Use the button to dispatch a job right now.
+        </p>
+        <button onClick={runNext} disabled={triggering || queuedCount === 0}>
+          {triggering ? "🏭 Working…" : `▶ Run next job now (${queuedCount} queued)`}
+        </button>
+        {triggerMsg && <p style={{ fontSize: 13, marginBottom: 0 }}>{triggerMsg}</p>}
+      </div>
+
+      {queue?.storage === "none" && (
+        <div className="card">
+          <div className="meta-box">
+            💡 The Factory Floor needs storage: attach a <strong>Vercel Blob</strong> store (Storage tab in Vercel) and
+            redeploy. That’s where the queue and history live so agents work without your browser open.
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ───────────────────────── Queue ───────────────────────── */
+
+function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Settings }) {
+  const [input, setInput] = useState(
+    "A, Alligator\nB, Bear\nC, Cat\nD, Dog\nE, Elephant\nF, Frog\nG, Giraffe\nH, Hippo\nI, Iguana\nJ, Jaguar\nK, Koala\nL, Lion\nM, Monkey\nN, Narwhal\nO, Owl\nP, Penguin\nQ, Quokka\nR, Rabbit\nS, Snake\nT, Tiger\nU, Unau\nV, Vulture\nW, Whale\nX, X-ray Fish\nY, Yak\nZ, Zebra"
+  );
+  const [msg, setMsg] = useState("");
+  void settings;
+
+  async function enqueue() {
+    const jobs = input
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => {
+        const [letter, animal] = l.split(/[,\t]/).map((p) => p.trim());
+        return { letter, animal };
+      })
+      .filter((j) => j.letter && j.animal);
+    if (!jobs.length) return;
+    setMsg("Adding jobs…");
+    try {
+      const res = await fetch("/api/queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobs }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMsg(`✅ ${data.enqueued} jobs queued. Agents will pick them up.`);
+    } catch (e) {
+      setMsg(`❌ ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
+  const jobs = queue?.jobs || [];
+
+  return (
+    <div className="grid">
+      <div className="card">
+        <h2>
+          <span className="num">📋</span>Add jobs
+        </h2>
+        <label>One episode per line: Letter, Animal</label>
+        <textarea rows={12} value={input} onChange={(e) => setInput(e.target.value)} />
+        <button onClick={enqueue}>➕ Enqueue jobs</button>
+        {msg && <p style={{ fontSize: 13 }}>{msg}</p>}
+        <p style={{ fontSize: 12, color: "var(--muted)" }}>
+          Jobs live in storage, not your browser — the cron worker keeps producing even when this tab is closed.
+        </p>
+      </div>
+
+      <div className="card">
+        <h2>Queue ({jobs.length})</h2>
+        {jobs.length === 0 && <div style={{ color: "var(--muted)", fontSize: 14 }}>No jobs yet.</div>}
+        {jobs.map((j) => (
+          <div key={j.id} className="scene-row">
+            <div className="thumb placeholder">{j.letter}</div>
+            <div className="line">
+              <strong>{j.animal}</strong>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                {new Date(j.createdAt).toLocaleString()}
+                {j.costUSD != null && ` · $${j.costUSD.toFixed(3)}`}
+              </div>
+              {j.error && <div style={{ color: "var(--err)", fontSize: 12 }}>{j.error}</div>}
+            </div>
+            <div className="status">
+              {j.status === "queued" && "⏸️"}
+              {j.status === "running" && `⏳ ${j.progress ?? 0}%`}
+              {j.status === "done" && "✅"}
+              {j.status === "failed" && "❌"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ───────────────────────── Create (manual single) ───────────────────────── */
 
 function CreateTab({ settings }: { settings: Settings }) {
   const [letter, setLetter] = useState("A");
@@ -161,7 +422,7 @@ function CreateTab({ settings }: { settings: Settings }) {
       <div>
         <div className="card">
           <h2>
-            <span className="num">▶</span>New episode
+            <span className="num">▶</span>Single episode (instant)
           </h2>
           <label>Letter</label>
           <input type="text" value={letter} maxLength={1} onChange={(e) => setLetter(e.target.value.toUpperCase())} />
@@ -197,7 +458,12 @@ function CreateTab({ settings }: { settings: Settings }) {
             <div className="card">
               <h2>Your episode 🎉</h2>
               {episode.videoUrl && <video controls src={episode.videoUrl} />}
-              <button onClick={download}>⬇️ Download MP4{episode.bytes ? ` (${(episode.bytes / 1048576).toFixed(1)} MB)` : ""}</button>
+              <button onClick={download}>
+                ⬇️ Download MP4{episode.bytes ? ` (${(episode.bytes / 1048576).toFixed(1)} MB)` : ""}
+              </button>
+              {episode.costUSD != null && (
+                <p style={{ fontSize: 12, color: "var(--muted)" }}>Est. cost: ${episode.costUSD.toFixed(3)}</p>
+              )}
             </div>
 
             <div className="card">
@@ -248,136 +514,13 @@ function CreateTab({ settings }: { settings: Settings }) {
         )}
         {!episode && !busy && (
           <div className="card" style={{ color: "var(--muted)", fontSize: 14 }}>
-            <h2>How it works</h2>
-            <p>Pick a letter and an animal, hit the button, and the factory will:</p>
+            <h2>Tip 💡</h2>
             <p>
-              1. ✍️ Write a 6-scene toddler episode
-              <br />
-              2. 🎙️ Voice every scene (ElevenLabs)
-              <br />
-              3. 🎨 Illustrate every scene (OpenAI)
-              <br />
-              4. 🎬 Render a captioned vertical MP4 with transitions
-              {settings.musicUrl ? " and your music bed" : ""}
+              For hands-off production use the <strong>Job Queue</strong> tab instead — queue the whole A–Z series and
+              let the agents work through it. This tab is for one-off test runs.
             </p>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-/* ───────────────────────── Batch ───────────────────────── */
-
-interface BatchRow {
-  letter: string;
-  animal: string;
-  status: "queued" | "running" | "done" | "failed";
-  episode?: Episode;
-  error?: string;
-}
-
-function BatchTab({ settings }: { settings: Settings }) {
-  const [input, setInput] = useState(
-    "A, Alligator\nB, Bear\nC, Cat\nD, Dog\nE, Elephant\nF, Frog\nG, Giraffe\nH, Hippo"
-  );
-  const [rows, setRows] = useState<BatchRow[]>([]);
-  const [busy, setBusy] = useState(false);
-
-  async function runBatch() {
-    const parsed: BatchRow[] = input
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((l) => {
-        const [letter, animal] = l.split(/[,\t]/).map((p) => p.trim());
-        return { letter: (letter || "").toUpperCase(), animal: animal || "", status: "queued" as const };
-      })
-      .filter((r) => r.letter && r.animal);
-    if (!parsed.length) return;
-    setRows(parsed);
-    setBusy(true);
-
-    for (let i = 0; i < parsed.length; i++) {
-      setRows((rs) => rs.map((r, j) => (j === i ? { ...r, status: "running" } : r)));
-      try {
-        const res = await fetch("/api/episodes", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ letter: parsed[i].letter, animal: parsed[i].animal, settings }),
-        });
-        if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-        let episode: Episode | null = null;
-        let error = "";
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split("\n");
-          buf = lines.pop() || "";
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            const ev = JSON.parse(line);
-            if (ev.type === "episode") episode = ev.episode;
-            if (ev.type === "error") error = ev.message;
-          }
-        }
-        if (episode) {
-          const ep = episode as Episode;
-          setRows((rs) => rs.map((r, j) => (j === i ? { ...r, status: "done", episode: ep } : r)));
-        } else {
-          throw new Error(error || "unknown error");
-        }
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        setRows((rs) => rs.map((r, j) => (j === i ? { ...r, status: "failed", error: msg } : r)));
-      }
-    }
-    setBusy(false);
-  }
-
-  return (
-    <div className="grid">
-      <div className="card">
-        <h2>
-          <span className="num">📚</span>Batch queue
-        </h2>
-        <label>One episode per line: Letter, Animal</label>
-        <textarea rows={10} value={input} onChange={(e) => setInput(e.target.value)} />
-        <button onClick={runBatch} disabled={busy}>
-          {busy ? "🏭 Batch running…" : `🏭 Run batch (${input.split("\n").filter((l) => l.trim()).length} episodes)`}
-        </button>
-        <p style={{ fontSize: 12, color: "var(--muted)" }}>
-          Runs one episode at a time. Keep this tab open — each finished episode appears on the right with a download
-          link.
-        </p>
-      </div>
-
-      <div className="card">
-        <h2>Results</h2>
-        {rows.length === 0 && <div style={{ color: "var(--muted)", fontSize: 14 }}>No batch yet.</div>}
-        {rows.map((r, i) => (
-          <div key={i} className="scene-row">
-            <div className="thumb placeholder">{r.letter}</div>
-            <div className="line">
-              <strong>{r.animal}</strong>
-              {r.error && <div style={{ color: "var(--err)", fontSize: 12 }}>{r.error}</div>}
-            </div>
-            <div className="status">
-              {r.status === "queued" && "⏸️"}
-              {r.status === "running" && "⏳"}
-              {r.status === "failed" && "❌"}
-              {r.status === "done" && r.episode?.videoUrl && (
-                <a href={r.episode.videoUrl} download target="_blank" rel="noreferrer" style={{ color: "var(--ok)" }}>
-                  ⬇️ MP4
-                </a>
-              )}
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -470,7 +613,6 @@ function SettingsTab({ settings, onSave }: { settings: Settings; onSave: (s: Set
       setDraft({ ...draft, musicUrl: data.musicUrl });
       setMusicMsg("✅ Music uploaded and will play under every episode.");
     } catch (e) {
-      // Blob storage off — keep the data URL inline (works for short tracks)
       setDraft({ ...draft, musicUrl: dataUrl });
       setMusicMsg(`⚠️ Stored locally instead (${e instanceof Error ? e.message : "no blob storage"}).`);
     }
@@ -521,7 +663,10 @@ function SettingsTab({ settings, onSave }: { settings: Settings; onSave: (s: Set
       >
         {saved ? "✅ Saved!" : "💾 Save settings"}
       </button>
-      <p style={{ fontSize: 12, color: "var(--muted)" }}>Settings are stored in this browser only.</p>
+      <p style={{ fontSize: 12, color: "var(--muted)" }}>
+        Settings are stored in this browser only. The cron worker runs with defaults — voice/model changes here apply
+        to manual runs and the queue “run now” button.
+      </p>
     </div>
   );
 }

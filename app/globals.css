@@ -126,3 +126,34 @@ textarea:focus { border-color: var(--accent); }
 
 input[type="file"] { color: var(--muted); font-size: 13px; }
 input[type="checkbox"] { accent-color: var(--accent); }
+
+/* ── v3 additions: Factory Floor ── */
+
+.stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+@media (max-width: 700px) { .stat-strip { grid-template-columns: repeat(2, 1fr); } }
+.stat {
+  background: var(--panel); border: 1px solid #2c3355; border-radius: var(--radius);
+  padding: 14px 16px; text-align: center;
+}
+.stat-v { font-size: 26px; font-weight: 800; color: var(--accent); }
+.stat-k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+.agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.agent-card {
+  background: var(--panel-2); border: 1px solid #2c3355; border-radius: 12px;
+  padding: 16px 12px; text-align: center; transition: border-color 0.3s, box-shadow 0.3s;
+}
+.agent-card.working { border-color: var(--accent); box-shadow: 0 0 18px rgba(255, 176, 32, 0.25); }
+.agent-emoji { font-size: 34px; }
+.agent-card.working .agent-emoji { animation: bounce 1s infinite; }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.agent-name { font-weight: 700; font-size: 14px; margin-top: 8px; }
+.agent-role { font-size: 11.5px; color: var(--muted); margin-top: 3px; min-height: 28px; }
+.agent-status {
+  margin-top: 10px; font-size: 11px; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.agent-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #4a5178; }
+.agent-status.on { color: var(--accent); }
+.agent-status.on .dot { background: var(--accent); animation: pulse 1s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
