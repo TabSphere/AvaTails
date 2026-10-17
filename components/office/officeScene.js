@@ -47,7 +47,7 @@ export function createOfficeScene(container) {
   container.appendChild(renderer.domElement);
 
   // Custom orbit (drag rotate, wheel zoom, auto-rotate after idle)
-  const sph = { theta: 0.6, phi: 1.05, radius: 26 };
+  const sph = { theta: 0.6, phi: 1.0, radius: 21 };
   const camTarget = new THREE.Vector3(0, 1.2, 0);
   let autoRot = true, isDrag = false, px = 0, py = 0, autoTmr = null;
   function updCam() {
@@ -528,11 +528,12 @@ export function createOfficeScene(container) {
 
   function updateTime(min) {
     timeOfDay = min;
-    const day = Math.max(0, Math.sin(((min - 360) / 720) * Math.PI)); // 6:00–18:00
-    sun.intensity = cyberpunk ? 0.05 : 0.12 + day * 1.0;
-    sun.color.setHSL(0.1, 0.5, 0.5 + day * 0.45);
-    ambient.intensity = cyberpunk ? 0.12 : 0.2 + day * 0.4;
-    hemi.intensity = cyberpunk ? 0.05 : 0.12 + day * 0.25;
+    const rawDay = Math.max(0, Math.sin(((min - 360) / 720) * Math.PI)); // 6:00–18:00
+    const day = 0.45 + rawDay * 0.55; // studio stays bright and readable around the clock
+    sun.intensity = cyberpunk ? 0.05 : 0.25 + day * 1.1;
+    sun.color.setHSL(0.1, 0.45, 0.55 + day * 0.4);
+    ambient.intensity = cyberpunk ? 0.12 : 0.38 + day * 0.4;
+    hemi.intensity = cyberpunk ? 0.05 : 0.2 + day * 0.3;
     bgTmp.lerpColors(nightBg, cyberpunk ? nightBg : dayBg, day);
     scene.background = bgTmp;
     scene.fog.color.copy(bgTmp);
@@ -540,7 +541,7 @@ export function createOfficeScene(container) {
       tb.material = cyberpunk ? MB(0x223355) : MB(0xf0f4ff);
       tb.userData.light.intensity = cyberpunk ? 0.03 : 0.25 + day * 0.2;
     });
-    const dark = day < 0.3 || cyberpunk;
+    const dark = cyberpunk; // only lights-off mode dims the desk glows
     agentData.forEach((ad) => {
       ad.glow.intensity = ad.working ? 0.8 : dark ? 0.22 : 0;
     });
