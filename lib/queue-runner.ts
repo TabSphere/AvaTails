@@ -2,7 +2,7 @@
 // through it, writing status to the queue so the Factory Floor stays live.
 // Used by both the manual "run next job" button and the Vercel Cron trigger.
 import { runEpisode } from "./pipeline";
-import { nextQueuedJob, updateJob, recordFinished } from "./queue";
+import { nextQueuedJob, updateJob } from "./queue";
 import { blobEnabled } from "./storage";
 import type { FactorySettings } from "./types";
 
@@ -36,15 +36,18 @@ export async function runNextJob(settings: FactorySettings): Promise<RunResult> 
         }).catch(() => {});
       }
     });
+    // Approval gate: the episode is produced, but nothing counts as "done"
+    // until the boss approves it (POST /api/queue/approve). The Publisher
+    // stands by, waving, until then.
     await updateJob(job.id, {
-      status: "done",
+      status: "waiting",
+      stage: "awaiting your approval",
       progress: 100,
-      agents: [],
+      agents: ["publisher"] as never,
       episodeId: episode.id,
       costUSD: episode.costUSD,
-      finishedAt: new Date().toISOString(),
+      logTail: [...(job.logTail || []), "✋ Episode ready — Publisher needs your OK"],
     });
-    await recordFinished({ costUSD: episode.costUSD || 0 });
     return { ran: true, jobId: job.id, episodeId: episode.id };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

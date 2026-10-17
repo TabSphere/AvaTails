@@ -5,7 +5,9 @@ import crypto from "crypto";
 import { blobEnabled } from "./storage";
 import type { AgentId } from "./agents";
 
-export type JobStatus = "queued" | "running" | "done" | "failed";
+// "waiting" = episode produced, Publisher standing by — needs the boss's OK
+// before it counts as done (the approval gate).
+export type JobStatus = "queued" | "running" | "waiting" | "done" | "failed";
 
 export interface QueueJob {
   id: string;
@@ -77,11 +79,12 @@ export async function enqueueJobs(items: Array<{ letter: string; animal: string 
     createdAt: new Date().toISOString(),
     logTail: [],
   }));
-  // Order: existing queued → new batch → running → finished
+  // Order: existing queued → new batch → running → waiting → finished
   const existingQueued = state.jobs.filter((j) => j.status === "queued");
   const running = state.jobs.filter((j) => j.status === "running");
+  const waiting = state.jobs.filter((j) => j.status === "waiting");
   const finished = state.jobs.filter((j) => j.status === "done" || j.status === "failed");
-  state.jobs = [...existingQueued, ...jobs, ...running, ...finished];
+  state.jobs = [...existingQueued, ...jobs, ...running, ...waiting, ...finished];
   await writeQueue(state);
   return jobs;
 }
