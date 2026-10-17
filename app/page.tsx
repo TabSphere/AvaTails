@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 const Office3D = dynamic(() => import("@/components/office/Office3D"), {
   ssr: false,
-  loading: () => <div className="office-loading">🏭 Building the factory floor…</div>,
+  loading: () => <div className="office-loading">🖥️ Powering up the AI data centre…</div>,
 });
 
 /* ── shared types ── */
@@ -131,7 +131,7 @@ export default function Home() {
         {(["floor", "queue", "create", "history", "settings"] as Tab[]).map((t) => (
           <button key={t} className={`tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t === "floor"
-              ? "🏭 Factory Floor"
+              ? "🖥️ Data Centre"
               : t === "queue"
                 ? "📋 Job Queue"
                 : t === "create"
@@ -209,7 +209,7 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
       </div>
 
       <div className="card">
-        <h2>🏭 The factory floor — live</h2>
+        <h2>🖥️ Inside the AI data centre — live</h2>
         <Office3D
           workingIds={workingIds}
           status={officeStatus}
@@ -218,7 +218,7 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
           jobTitle={runningJob ? `${runningJob.letter} is for ${runningJob.animal}` : undefined}
         />
         <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0, marginTop: 10 }}>
-          Drag to orbit · scroll to zoom · agents glow when the real pipeline has them working. 3D floor adapted from{" "}
+          Drag to orbit · scroll to zoom · agents glow when the real pipeline has them working. Data-centre floor adapted from{" "}
           <a href="https://github.com/Gaurav2693/ai-office" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
             ai-office
           </a>{" "}
