@@ -122,10 +122,14 @@ export default function Home() {
       <header className="brand">
         <div className="logo">🐊</div>
         <h1>
-          Ava<span>Tails</span> Factory
+          Tab<span>Sphere</span>
         </h1>
+        <div className="div-badge">YouTube Automation Division</div>
       </header>
-      <p className="subtitle">Your AI agent team for kids animal-learning episodes — working around the clock.</p>
+      <p className="subtitle">
+        Powering the <strong>@AvaTails</strong> channel — your AI agent team for kids animal-learning episodes,
+        working around the clock.
+      </p>
 
       <nav className="tabs">
         {(["floor", "queue", "create", "history", "settings"] as Tab[]).map((t) => (

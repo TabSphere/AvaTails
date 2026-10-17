@@ -1,18 +1,18 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// AvaTails 3D Factory Floor — v6 "AI DATA CENTRE"
+// TabSphere — YouTube Automation Division · 3D Operations Floor (v7, bright)
 // Adapted from Gaurav2693/ai-office (MIT License) — https://github.com/Gaurav2693/ai-office
-// © Gaurav Mishra. Reworked for AvaTails: 6 real agents driven by the live job queue,
-// re-skinned as the inside of an AI data centre (server aisles, cable trays, uplinks).
+// © Gaurav Mishra. Reworked for TabSphere/@AvaTails: 6 real agents driven by the
+// live job queue, inside a bright AI data-centre / innovation hub.
 // ─────────────────────────────────────────────────────────────────────────────
 import * as THREE from "three";
 
 export const OFFICE_AGENTS = [
   { id: "chief",     name: "CHIEF",  full: "Chief of Staff", color: 0xffb020, hex: "#FFB020", screen: "chief",     hair: 0x3e2723, shirt: 0x37474f, pants: 0x1a1a2e },
   { id: "writer",    name: "WRITER", full: "Scriptwriter",   color: 0x7c4dff, hex: "#7C4DFF", screen: "writer",    hair: 0x1a1a2e, shirt: 0x4527a0, pants: 0x263238 },
-  { id: "voice",     name: "VOICE",  full: "Voice Artist",   color: 0x00e676, hex: "#00E676", screen: "voice",     hair: 0x222222, shirt: 0x1b5e20, pants: 0x1a1a2e },
-  { id: "artist",    name: "ARTIST", full: "Illustrator",    color: 0xe040fb, hex: "#E040FB", screen: "artist",    hair: 0x4a148c, shirt: 0x6a1b9a, pants: 0x1a1a2e },
+  { id: "voice",     name: "VOICE",  full: "Voice Artist",   color: 0x00c853, hex: "#00C853", screen: "voice",     hair: 0x222222, shirt: 0x1b7a43, pants: 0x1a1a2e },
+  { id: "artist",    name: "ARTIST", full: "Illustrator",    color: 0xe040fb, hex: "#E040FB", screen: "artist",    hair: 0x4a148c, shirt: 0x8e24aa, pants: 0x1a1a2e },
   { id: "editor",    name: "EDITOR", full: "Video Editor",   color: 0x448aff, hex: "#448AFF", screen: "editor",    hair: 0x3e2723, shirt: 0x1565c0, pants: 0x263238 },
-  { id: "publisher", name: "PUB",    full: "Publisher",      color: 0xff9100, hex: "#FF9100", screen: "publisher", hair: 0x1a1a1a, shirt: 0xbf360c, pants: 0x3e2723 },
+  { id: "publisher", name: "PUB",    full: "Publisher",      color: 0xff6d00, hex: "#FF6D00", screen: "publisher", hair: 0x1a1a1a, shirt: 0xd84315, pants: 0x3e2723 },
 ];
 
 const CHAT_PHRASES = [
@@ -36,8 +36,8 @@ export function createOfficeScene(container) {
 
   // ── Scene / camera / renderer ────────────────────────────────────────────
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x04070f);
-  scene.fog = new THREE.FogExp2(0x04070f, 0.004);
+  scene.background = new THREE.Color(0x93a9d4);
+  scene.fog = new THREE.FogExp2(0x93a9d4, 0.004);
 
   const camera = new THREE.PerspectiveCamera(30, W() / H(), 0.1, 500);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -76,17 +76,17 @@ export function createOfficeScene(container) {
   window.addEventListener("pointerup", onUp);
   dom.addEventListener("wheel", onWheel, { passive: false });
 
-  // ── Lights (cool data-centre white/blue) ─────────────────────────────────
-  const ambient = new THREE.AmbientLight(0xdce8ff, 0.55);
+  // ── Lights (bright facility lighting) ────────────────────────────────────
+  const ambient = new THREE.AmbientLight(0xffffff, 0.9);
   scene.add(ambient);
-  const sun = new THREE.DirectionalLight(0xe8f2ff, 1.1);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
   sun.position.set(12, 20, 10);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -18; sun.shadow.camera.right = 18;
   sun.shadow.camera.top = 18; sun.shadow.camera.bottom = -18;
   scene.add(sun);
-  const hemi = new THREE.HemisphereLight(0xcfe0ff, 0x24304f, 0.35);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xb8c4d8, 0.5);
   scene.add(hemi);
 
   // ── Materials / shell ────────────────────────────────────────────────────
@@ -95,63 +95,63 @@ export function createOfficeScene(container) {
   const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
   const MB = (c) => new THREE.MeshBasicMaterial({ color: c });
 
-  // Raised data-centre floor: dark base + glowing cyan grid
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(26, 0.15, 18), M(0x0a0f1c));
+  // Raised floor: light base + soft blue grid
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(26, 0.15, 18), M(0xdde4ee));
   floor.position.y = -0.075; floor.receiveShadow = true; office.add(floor);
   const gridCv = document.createElement("canvas"); gridCv.width = 256; gridCv.height = 256;
   const gc = gridCv.getContext("2d");
-  gc.fillStyle = "#0a0f1c"; gc.fillRect(0, 0, 256, 256);
-  gc.strokeStyle = "rgba(24,255,255,0.10)"; gc.lineWidth = 2;
+  gc.fillStyle = "#dde4ee"; gc.fillRect(0, 0, 256, 256);
+  gc.strokeStyle = "rgba(40,90,180,0.14)"; gc.lineWidth = 2;
   for (let i = 0; i <= 256; i += 32) {
     gc.beginPath(); gc.moveTo(i, 0); gc.lineTo(i, 256); gc.stroke();
     gc.beginPath(); gc.moveTo(0, i); gc.lineTo(256, i); gc.stroke();
   }
-  gc.strokeStyle = "rgba(24,255,255,0.22)"; gc.lineWidth = 3;
+  gc.strokeStyle = "rgba(40,90,180,0.28)"; gc.lineWidth = 3;
   gc.strokeRect(1, 1, 254, 254);
   const gridTex = new THREE.CanvasTexture(gridCv);
   gridTex.wrapS = gridTex.wrapT = THREE.RepeatWrapping;
   gridTex.repeat.set(6.5, 4.5);
-  const gridFloor = new THREE.Mesh(new THREE.PlaneGeometry(26, 18), new THREE.MeshBasicMaterial({ map: gridTex, transparent: true, opacity: 0.9 }));
+  const gridFloor = new THREE.Mesh(new THREE.PlaneGeometry(26, 18), new THREE.MeshBasicMaterial({ map: gridTex }));
   gridFloor.rotation.x = -Math.PI / 2; gridFloor.position.y = 0.005; office.add(gridFloor);
 
-  // ── Room shell: walls, beams, skirting, brand stripe ─────────────────────
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(26, 4.5, 0.2), M(0x0d1428));
+  // ── Room shell: light walls, beams, skirting, brand stripes ──────────────
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(26, 4.5, 0.2), M(0xccd6e8));
   wall.position.set(0, 2.25, -8.9); office.add(wall);
   [-13, 13].forEach((wx) => {
-    const side = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4.5, 18), M(0x101a33));
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4.5, 18), M(0xd4ddee));
     side.position.set(wx, 2.25, 0); office.add(side);
   });
   // ceiling beams (suggest a ceiling without blocking top-down orbit views)
   [-4, 0, 4].forEach((bz) => {
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(26, 0.16, 0.4), M(0x0a0f1e));
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(26, 0.16, 0.4), M(0xb4c0d8));
     beam.position.set(0, 4.5, bz); office.add(beam);
   });
   // skirting boards
-  const skirt = new THREE.Mesh(new THREE.BoxGeometry(26, 0.18, 0.06), M(0x1a2440));
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(26, 0.18, 0.06), M(0xffffff));
   skirt.position.set(0, 0.09, -8.77); office.add(skirt);
   [-12.87, 12.87].forEach((wx) => {
-    const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 18), M(0x1a2440));
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 18), M(0xffffff));
     s.position.set(wx, 0.09, 0); office.add(s);
   });
-  // amber brand stripe + cyan accent lines along the back wall
+  // amber brand stripe + cyan accent lines
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(26, 0.14, 0.04), MB(0xffb020));
   stripe.position.set(0, 0.55, -8.78); office.add(stripe);
   [0.28, 4.1].forEach((wy) => {
-    const line = new THREE.Mesh(new THREE.BoxGeometry(26, 0.05, 0.04), MB(0x18ffff));
+    const line = new THREE.Mesh(new THREE.BoxGeometry(26, 0.05, 0.04), MB(0x0fa8c8));
     line.position.set(0, wy, -8.78); office.add(line);
   });
   [-12.87, 12.87].forEach((wx) => {
-    const line = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 18), MB(0x18ffff));
+    const line = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 18), MB(0x0fa8c8));
     line.position.set(wx, 4.1, 0); office.add(line);
   });
 
-  // Uplink status displays flanking the sign (data centres have no windows)
+  // Uplink status displays flanking the sign
   [-8.5, 8.5].forEach((wx, idx) => {
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.9, 0.08), M(0x0a0f1e));
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.9, 0.08), M(0x16224a));
     frame.position.set(wx, 2.7, -8.76); office.add(frame);
     const dispCv = document.createElement("canvas"); dispCv.width = 128; dispCv.height = 80;
     const dc = dispCv.getContext("2d");
-    dc.fillStyle = "#060b16"; dc.fillRect(0, 0, 128, 80);
+    dc.fillStyle = "#0a1130"; dc.fillRect(0, 0, 128, 80);
     dc.strokeStyle = "#18FFFF"; dc.lineWidth = 2; dc.beginPath();
     for (let i = 0; i <= 16; i++) {
       const x = 6 + i * 7.2;
@@ -159,7 +159,7 @@ export function createOfficeScene(container) {
       if (i === 0) dc.moveTo(x, y); else dc.lineTo(x, y);
     }
     dc.stroke();
-    dc.fillStyle = "rgba(61,220,151,0.8)";
+    dc.fillStyle = "rgba(61,220,151,0.85)";
     for (let i = 0; i < 8; i++) dc.fillRect(8 + i * 15, 64 - (i * 7 + idx * 11) % 22, 9, 22);
     dc.font = "bold 9px monospace"; dc.fillStyle = "#18FFFF";
     dc.fillText(idx === 0 ? "UPLINK A" : "UPLINK B", 8, 12);
@@ -169,15 +169,15 @@ export function createOfficeScene(container) {
     disp.position.set(wx, 2.7, -8.71); office.add(disp);
   });
 
-  // Back wall with AVATAILS sign
+  // Back wall sign: TabSphere — YouTube Automation Division
   const signCv = document.createElement("canvas"); signCv.width = 512; signCv.height = 96;
   const signCx = signCv.getContext("2d");
-  signCx.fillStyle = "#0d1428"; signCx.fillRect(0, 0, 512, 96);
-  signCx.font = "bold 52px 'Segoe UI', sans-serif"; signCx.textAlign = "center";
-  signCx.fillStyle = "#F3F5FF"; signCx.fillText("AVA", 170, 66);
-  signCx.fillStyle = "#FFB020"; signCx.fillText("TAILS", 292, 66);
-  signCx.font = "20px 'Segoe UI', sans-serif"; signCx.fillStyle = "#18FFFF";
-  signCx.fillText("A I   W O R K S", 416, 62);
+  signCx.fillStyle = "#ccd6e8"; signCx.fillRect(0, 0, 512, 96);
+  signCx.font = "bold 46px 'Segoe UI', sans-serif"; signCx.textAlign = "center";
+  signCx.fillStyle = "#16224a"; signCx.fillText("Tab", 196, 56);
+  signCx.fillStyle = "#f59f00"; signCx.fillText("Sphere", 322, 56);
+  signCx.font = "bold 17px 'Segoe UI', sans-serif"; signCx.fillStyle = "#0e7a8f";
+  signCx.fillText("Y O U T U B E   A U T O M A T I O N   D I V I S I O N", 256, 84);
   const signTex = new THREE.CanvasTexture(signCv); signTex.colorSpace = THREE.SRGBColorSpace;
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 1.5), new THREE.MeshBasicMaterial({ map: signTex }));
   sign.position.set(0, 3.1, -8.78); office.add(sign);
@@ -185,26 +185,28 @@ export function createOfficeScene(container) {
   // Mission-control board: current job + live progress bar (under the sign)
   const boardCv = document.createElement("canvas"); boardCv.width = 512; boardCv.height = 128;
   const boardTex = new THREE.CanvasTexture(boardCv); boardTex.colorSpace = THREE.SRGBColorSpace;
+  const boardFrame = new THREE.Mesh(new THREE.BoxGeometry(5.5, 1.55, 0.06), M(0x16224a));
+  boardFrame.position.set(0, 1.72, -8.8); office.add(boardFrame);
   const board = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 1.3), new THREE.MeshBasicMaterial({ map: boardTex }));
-  board.position.set(0, 1.72, -8.78); office.add(board);
+  board.position.set(0, 1.72, -8.76); office.add(board);
   function drawBoard(title, pct, stage) {
     const c = boardCv.getContext("2d");
-    c.fillStyle = "#0D1117"; c.fillRect(0, 0, 512, 128);
-    c.strokeStyle = "#2c3355"; c.lineWidth = 4; c.strokeRect(2, 2, 508, 124);
+    c.fillStyle = "#0a1130"; c.fillRect(0, 0, 512, 128);
+    c.strokeStyle = "#2c4a8a"; c.lineWidth = 4; c.strokeRect(2, 2, 508, 124);
     c.textAlign = "center";
     if (title) {
       c.fillStyle = "#FFB020"; c.font = "bold 32px 'Segoe UI', sans-serif";
       c.fillText(title.toUpperCase().slice(0, 26), 256, 46);
       c.fillStyle = "#18FFFF"; c.font = "19px 'Segoe UI', sans-serif";
       c.fillText((stage || "working").toUpperCase().slice(0, 34), 256, 74);
-      c.fillStyle = "#20263F"; c.fillRect(56, 92, 380, 18);
+      c.fillStyle = "#22305c"; c.fillRect(56, 92, 380, 18);
       c.fillStyle = "#3DDC97";
       c.fillRect(56, 92, 380 * Math.max(0, Math.min(1, (pct || 0) / 100)), 18);
       c.fillStyle = "#F3F5FF"; c.font = "bold 15px 'Segoe UI', sans-serif";
       c.fillText(Math.round(pct || 0) + "%", 466, 107);
     } else {
-      c.fillStyle = "#3a4270"; c.font = "bold 25px 'Segoe UI', sans-serif";
-      c.fillText("QUEUE EMPTY — CLUSTER IDLE", 256, 60);
+      c.fillStyle = "#7fd4ff"; c.font = "bold 24px 'Segoe UI', sans-serif";
+      c.fillText("@AVATAILS — QUEUE EMPTY", 256, 58);
       c.fillStyle = "#9AA3C7"; c.font = "17px 'Segoe UI', sans-serif";
       c.fillText("enqueue jobs to start production", 256, 92);
     }
@@ -223,27 +225,27 @@ export function createOfficeScene(container) {
   function drawClock(min) {
     const c = clockCv.getContext("2d");
     c.clearRect(0, 0, 96, 96);
-    c.fillStyle = "#0d1428"; c.beginPath(); c.arc(48, 48, 44, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = "#18FFFF"; c.lineWidth = 4; c.stroke();
-    c.fillStyle = "#9AA3C7";
+    c.fillStyle = "#ffffff"; c.beginPath(); c.arc(48, 48, 44, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = "#16224a"; c.lineWidth = 4; c.stroke();
+    c.fillStyle = "#8a94a8";
     for (let h = 0; h < 12; h++) {
       const a = h * (Math.PI / 6);
       c.fillRect(48 + Math.cos(a) * 36 - 1.5, 48 + Math.sin(a) * 36 - 1.5, 3, 3);
     }
     const hr = ((min / 60) % 12) * (Math.PI / 6) - Math.PI / 2;
     const mn = (min % 60) * (Math.PI / 30) - Math.PI / 2;
-    c.strokeStyle = "#F3F5FF";
+    c.strokeStyle = "#16224a";
     c.lineWidth = 5; c.beginPath(); c.moveTo(48, 48); c.lineTo(48 + Math.cos(hr) * 20, 48 + Math.sin(hr) * 20); c.stroke();
     c.lineWidth = 3; c.beginPath(); c.moveTo(48, 48); c.lineTo(48 + Math.cos(mn) * 31, 48 + Math.sin(mn) * 31); c.stroke();
-    c.fillStyle = "#ffb020"; c.beginPath(); c.arc(48, 48, 4, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "#f59f00"; c.beginPath(); c.arc(48, 48, 4, 0, Math.PI * 2); c.fill();
     clockTex.needsUpdate = true;
   }
 
-  // Ceiling tube lights (visual only, cool white)
+  // Ceiling tube lights
   for (let x = -8; x <= 8; x += 8) {
-    const tube = new THREE.Mesh(new THREE.BoxGeometry(3, 0.05, 0.6), MB(0xe8f4ff));
+    const tube = new THREE.Mesh(new THREE.BoxGeometry(3, 0.05, 0.6), MB(0xffffff));
     tube.position.set(x, 4.4, 0); office.add(tube);
-    const pl = new THREE.PointLight(0xcfe8ff, 0.35, 12, 1.8);
+    const pl = new THREE.PointLight(0xffffff, 0.5, 12, 1.8);
     pl.position.set(x, 4.1, 0); office.add(pl);
     tube.userData.isTube = true; tube.userData.light = pl;
   }
@@ -267,16 +269,16 @@ export function createOfficeScene(container) {
       }
     }
     const draw = () => {
-      ctx.fillStyle = "#070b16"; ctx.fillRect(0, 0, 64, 160);
-      ctx.fillStyle = "#101728";
+      ctx.fillStyle = "#101a38"; ctx.fillRect(0, 0, 64, 160);
+      ctx.fillStyle = "#1c2848";
       for (let r = 0; r < 20; r++) ctx.fillRect(2, 4 + r * 7.6, 60, 6);
       leds.forEach((L) => {
         if (L.blink && Math.random() > 0.5) L.on = !L.on;
-        ctx.fillStyle = L.on ? L.c : "#1a2338";
+        ctx.fillStyle = L.on ? L.c : "#2a3a5f";
         ctx.fillRect(L.x, L.y + 1, 3, 2.4);
       });
-      ctx.fillStyle = "#24304f"; ctx.fillRect(36, 4, 24, 152);
-      ctx.fillStyle = "#0d1424";
+      ctx.fillStyle = "#33436e"; ctx.fillRect(36, 4, 24, 152);
+      ctx.fillStyle = "#141f3d";
       for (let r = 0; r < 20; r++) ctx.fillRect(38, 5 + r * 7.6, 20, 4);
       tex.needsUpdate = true;
     };
@@ -284,43 +286,43 @@ export function createOfficeScene(container) {
     return { tex, draw };
   }
   function buildRack(x, z, ry) {
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.6, 0.9), M(0x0a0f1e));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.6, 0.9), M(0x2a3454));
     body.position.set(x, 1.3, z); body.rotation.y = ry; body.castShadow = true; office.add(body);
     const rf = makeRackFront();
     const front = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.4), new THREE.MeshBasicMaterial({ map: rf.tex }));
     front.position.set(x + Math.sin(ry) * 0.46, 1.3, z + Math.cos(ry) * 0.46);
     front.rotation.y = ry; office.add(front);
-    const st = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.12), MB(0x18ffff));
+    const st = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.12), MB(0x18c8ff));
     st.position.set(x, 2.66, z); office.add(st);
     racks.push(rf);
   }
-  // Cold aisles along both side walls (skipping the status screen zone on the left)
+  // Server aisles along both side walls
   [-6.5, -4, -1.5, 1, 6.5].forEach((z) => buildRack(-12.1, z, Math.PI / 2));
   [-6.5, -4, -1.5, 1, 3.5, 6.5].forEach((z) => buildRack(12.1, z, -Math.PI / 2));
 
   // Overhead cable trays
   [-11, 11].forEach((tx) => {
-    const tray = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 17), M(0x18223c));
+    const tray = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 17), M(0x9aa8c4));
     tray.position.set(tx, 4.35, 0); office.add(tray);
   });
   [-4.2, 4.2].forEach((tz) => {
-    const tray = new THREE.Mesh(new THREE.BoxGeometry(22.6, 0.08, 0.6), M(0x18223c));
+    const tray = new THREE.Mesh(new THREE.BoxGeometry(22.6, 0.08, 0.6), M(0x9aa8c4));
     tray.position.set(0, 4.35, tz); office.add(tray);
   });
 
   // Live data packets flowing along the trays
   const packets = [];
   const LANES = [
-    { axis: "z", fixed: -11, dir: 1 },  // left tray, -z → +z
-    { axis: "z", fixed: 11, dir: -1 },  // right tray, +z → -z
-    { axis: "x", fixed: -4.2, dir: 1 }, // back cross tray
-    { axis: "x", fixed: 4.2, dir: -1 }, // front cross tray
+    { axis: "z", fixed: -11, dir: 1 },
+    { axis: "z", fixed: 11, dir: -1 },
+    { axis: "x", fixed: -4.2, dir: 1 },
+    { axis: "x", fixed: 4.2, dir: -1 },
   ];
   for (let i = 0; i < 16; i++) {
     const lane = LANES[i % 4];
     const pkt = new THREE.Mesh(
       new THREE.BoxGeometry(0.09, 0.09, 0.09),
-      MB(i % 3 === 0 ? 0xffb020 : 0x18ffff)
+      MB(i % 3 === 0 ? 0xf59f00 : 0x0fa8c8)
     );
     const t = rng.r(-8, 8);
     if (lane.axis === "z") pkt.position.set(lane.fixed, 4.25, t);
@@ -412,7 +414,6 @@ export function createOfficeScene(container) {
     c.globalAlpha = 1;
     const t = frame * 0.02;
     if (type === "chief") {
-      // Kanban board with moving dots
       ["#FF6B6B", "#FFB020", "#3DDC97"].forEach((cl, col) => {
         c.fillStyle = cl; c.globalAlpha = 0.25; c.fillRect(8 + col * 40, 8, 34, h - 16);
         c.globalAlpha = 0.9;
@@ -449,7 +450,6 @@ export function createOfficeScene(container) {
       c.globalAlpha = 0.8; c.fillStyle = hex;
       c.beginPath(); c.arc(100 + Math.sin(t * 2) * 6, 40 + Math.cos(t * 2) * 6, 3, 0, Math.PI * 2); c.fill();
     } else if (type === "editor") {
-      // Video timeline with playhead
       c.fillStyle = hex; c.globalAlpha = 0.2; c.fillRect(8, 12, w - 16, 14);
       c.globalAlpha = 0.5;
       for (let i = 0; i < 6; i++) c.fillRect(10 + i * 19, 14, 15, 10);
@@ -460,7 +460,6 @@ export function createOfficeScene(container) {
       c.globalAlpha = 0.9; c.font = "7px monospace"; c.fillText("00:" + String(10 + (Math.floor(frame / 60) % 50)), 8, h - 8);
       c.fillText("xfade ✓", w - 42, h - 8);
     } else {
-      // publisher: upload bar + box
       c.strokeStyle = hex; c.globalAlpha = 0.9; c.lineWidth = 1.5;
       c.strokeRect(w / 2 - 12, 10, 24, 16);
       c.beginPath(); c.moveTo(w / 2 - 12, 10); c.lineTo(w / 2, 4); c.lineTo(w / 2 + 12, 10); c.stroke();
@@ -484,13 +483,13 @@ export function createOfficeScene(container) {
     const draw = (working, stageText) => {
       const c = cv.getContext("2d");
       c.clearRect(0, 0, 256, 64);
-      c.fillStyle = "rgba(7,18,38,0.78)";
+      c.fillStyle = "rgba(22,34,74,0.85)";
       c.beginPath(); c.roundRect(28, 8, 200, 48, 12); c.fill();
-      c.fillStyle = working ? agent.hex : "rgba(255,255,255,0.85)";
+      c.fillStyle = working ? agent.hex : "#ffffff";
       c.font = "bold 24px 'Segoe UI', sans-serif"; c.textAlign = "center";
       c.fillText(agent.name, 128, 32);
       c.font = "15px 'Segoe UI', sans-serif";
-      c.fillStyle = working ? "#3DDC97" : "rgba(255,255,255,0.4)";
+      c.fillStyle = working ? "#3DDC97" : "rgba(255,255,255,0.55)";
       const sub = working ? "● " + (stageText || "working").toUpperCase().slice(0, 20) : "○ idle";
       c.fillText(sub, 128, 50);
       tex.needsUpdate = true;
@@ -506,25 +505,24 @@ export function createOfficeScene(container) {
   function buildDesk(x, z, agent, faceSign) {
     // faceSign: +1 → char sits at z+0.7 facing -z; -1 → char at z-0.7 facing +z
     const g = new THREE.Group();
-    // legs
     [[-0.65, -0.3], [0.65, -0.3], [-0.65, 0.3], [0.65, 0.3]].forEach(([lx, lz]) => {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.7, 0.06), M(0x2a3450));
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.7, 0.06), M(0x9aa8c0));
       leg.position.set(x + lx, 0.35, z + lz); office.add(leg);
     });
-    const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.75), M(0x131a2e));
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.75), M(0xe8ecf0));
     top.position.set(x, 0.72, z); top.castShadow = true; top.receiveShadow = true; office.add(top);
-    const front = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.38, 0.03), M(0x0f1526));
+    const front = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.38, 0.03), M(0xdde4ec));
     front.position.set(x, 0.5, z + faceSign * -0.36); office.add(front);
     // cyan under-desk LED strip
-    const led = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.02, 0.02), MB(0x18ffff));
+    const led = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.02, 0.02), MB(0x0fa8c8));
     led.position.set(x, 0.695, z + faceSign * 0.37); office.add(led);
 
     // monitor (screen faces the char)
-    const monBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.02, 0.12), M(0x2a3450));
+    const monBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.02, 0.12), M(0xaabbcc));
     monBase.position.set(x, 0.75, z + faceSign * -0.1); office.add(monBase);
-    const monStand = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.03), M(0x2a3450));
+    const monStand = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.03), M(0xaabbcc));
     monStand.position.set(x, 0.86, z + faceSign * -0.1); office.add(monStand);
-    const monBody = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.52, 0.03), M(0x0a0e1a));
+    const monBody = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.52, 0.03), M(0x2a2a2a));
     monBody.position.set(x, 1.1, z + faceSign * -0.1); office.add(monBody);
     const cv = document.createElement("canvas"); cv.width = 128; cv.height = 80;
     const tex = new THREE.CanvasTexture(cv);
@@ -536,17 +534,17 @@ export function createOfficeScene(container) {
     screenData.push({ canvas: cv, ctx: cv.getContext("2d"), tex, type: agent.screen, hex: agent.hex });
 
     // keyboard + mug
-    const kb = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 0.13), M(0x1a2236));
+    const kb = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 0.13), M(0x333333));
     kb.position.set(x, 0.75, z + faceSign * 0.18); office.add(kb);
     const mug = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.06), M(agent.color));
     mug.position.set(x + 0.55, 0.78, z + faceSign * 0.15); office.add(mug);
 
     // chair
-    const cSeat = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.4), M(0x1c2742));
+    const cSeat = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.4), M(0x46557a));
     cSeat.position.set(x, 0.32, z + faceSign * 0.7); office.add(cSeat);
-    const cBack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.04), M(0x1c2742));
+    const cBack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.04), M(0x46557a));
     cBack.position.set(x, 0.6, z + faceSign * 0.9); office.add(cBack);
-    const cLeg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), M(0x2a3450));
+    const cLeg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), M(0x90a4ae));
     cLeg.position.set(x, 0.15, z + faceSign * 0.7); office.add(cLeg);
 
     // colored desk glow (on while working / in dark)
@@ -581,18 +579,17 @@ export function createOfficeScene(container) {
   // 2 rows × 3 consoles in the operations pit
   const deskX = [-6.5, 0, 6.5];
   OFFICE_AGENTS.forEach((agent, i) => {
-    if (i < 3) buildDesk(deskX[i], -3.2, agent, 1);   // back row, chars face -z (toward camera)
-    else buildDesk(deskX[i - 3], 3.2, agent, -1);     // front row, chars face +z
+    if (i < 3) buildDesk(deskX[i], -3.2, agent, 1);
+    else buildDesk(deskX[i - 3], 3.2, agent, -1);
   });
 
   // ── Props: CRAC cooling unit, visitor lounge, plants ─────────────────────
-  // CRAC unit (replaces the water cooler — data centres need serious cooling)
-  const crac = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.9, 0.6), M(0x14203a));
+  const crac = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.9, 0.6), M(0x94a2bc));
   crac.position.set(-10.8, 0.95, 2); crac.castShadow = true; office.add(crac);
   const cracCv = document.createElement("canvas"); cracCv.width = 64; cracCv.height = 128;
   const crc = cracCv.getContext("2d");
-  crc.fillStyle = "#0d1526"; crc.fillRect(0, 0, 64, 128);
-  crc.fillStyle = "#1c2a48";
+  crc.fillStyle = "#0a1130"; crc.fillRect(0, 0, 64, 128);
+  crc.fillStyle = "#22305c";
   for (let i = 0; i < 10; i++) crc.fillRect(8, 14 + i * 9, 48, 5);
   crc.fillStyle = "#18FFFF"; crc.font = "bold 8px monospace";
   crc.fillText("CRAC", 20, 10);
@@ -600,49 +597,49 @@ export function createOfficeScene(container) {
   const cracTex = new THREE.CanvasTexture(cracCv); cracTex.colorSpace = THREE.SRGBColorSpace;
   const cracFront = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.8), new THREE.MeshBasicMaterial({ map: cracTex }));
   cracFront.position.set(-10.8, 0.95, 2.31); office.add(cracFront);
-  const coolGlow = new THREE.PointLight(0x18ffff, 0.25, 4, 2);
+  const coolGlow = new THREE.PointLight(0x18c8ff, 0.25, 4, 2);
   coolGlow.position.set(-10.8, 1.9, 2.5); office.add(coolGlow);
 
   // Visitor lounge corner
-  const sofa = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 0.7), M(0x14233f));
+  const sofa = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 0.7), M(0x2c4a78));
   sofa.position.set(10, 0.2, 4); sofa.castShadow = true; office.add(sofa);
-  const sofaBack = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 0.15), M(0x14233f));
+  const sofaBack = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 0.15), M(0x2c4a78));
   sofaBack.position.set(10, 0.6, 4.3); office.add(sofaBack);
-  const table = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 0.5), M(0x1a2440));
+  const table = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 0.5), M(0xdde4ec));
   table.position.set(10, 0.175, 2.9); office.add(table);
-  const rug = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.02, 2.8), M(0x0e1a33));
+  const rug = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.02, 2.8), M(0xc3b8e2));
   rug.position.set(10, 0.02, 3.4); rug.receiveShadow = true; office.add(rug);
 
   function addPlant(px, pz) {
-    const pot = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.22, 0.28), M(0x1a2440));
+    const pot = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.22, 0.28), M(0xffffff));
     pot.position.set(px, 0.11, pz); pot.castShadow = true; office.add(pot);
     for (let i = 0; i < 3; i++) {
-      const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.1), M(0x3ddc97));
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.1), M(0x2e9e5b));
       leaf.position.set(px + rng.r(-0.08, 0.08), 0.4, pz + rng.r(-0.08, 0.08));
       leaf.rotation.z = rng.r(-0.25, 0.25); office.add(leaf);
     }
   }
   addPlant(-11.5, -7.5); addPlant(11.5, -7.5); addPlant(-11.5, 6.5);
 
-  // A–Z production tracker as a glowing status screen (left wall)
-  const wbFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.3, 3.6), M(0x0a0f1e));
+  // A–Z production tracker whiteboard (left wall, bright)
+  const wbFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.3, 3.6), M(0x9aa8c4));
   wbFrame.position.set(-12.8, 2.3, 3.5); office.add(wbFrame);
   const wbCv = document.createElement("canvas"); wbCv.width = 256; wbCv.height = 160;
   const wbc = wbCv.getContext("2d");
-  wbc.fillStyle = "#060b16"; wbc.fillRect(0, 0, 256, 160);
-  wbc.fillStyle = "#18FFFF"; wbc.font = "bold 15px 'Segoe UI', sans-serif"; wbc.textAlign = "left";
+  wbc.fillStyle = "#ffffff"; wbc.fillRect(0, 0, 256, 160);
+  wbc.fillStyle = "#16224a"; wbc.font = "bold 15px 'Segoe UI', sans-serif"; wbc.textAlign = "left";
   wbc.fillText("A-Z PRODUCTION", 12, 22);
-  wbc.fillStyle = "#3DDC97"; wbc.font = "9px monospace"; wbc.textAlign = "right";
+  wbc.fillStyle = "#00c853"; wbc.font = "9px monospace"; wbc.textAlign = "right";
   wbc.fillText("● LIVE", 246, 20);
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   wbc.textAlign = "center";
   for (let i = 0; i < 26; i++) {
     const col = i % 7, row = Math.floor(i / 7);
     const lx = 16 + col * 33, ly = 44 + row * 28;
-    wbc.fillStyle = "#101a30"; wbc.fillRect(lx - 4, ly - 16, 26, 22);
-    wbc.strokeStyle = "rgba(24,255,255,0.25)"; wbc.lineWidth = 1;
+    wbc.fillStyle = "#e3eaf6"; wbc.fillRect(lx - 4, ly - 16, 26, 22);
+    wbc.strokeStyle = "rgba(22,34,74,0.18)"; wbc.lineWidth = 1;
     wbc.strokeRect(lx - 4, ly - 16, 26, 22);
-    wbc.fillStyle = "#7fd4ff"; wbc.font = "bold 14px 'Segoe UI', sans-serif";
+    wbc.fillStyle = "#16224a"; wbc.font = "bold 14px 'Segoe UI', sans-serif";
     wbc.fillText(letters[i], lx + 9, ly);
   }
   const wbTex = new THREE.CanvasTexture(wbCv); wbTex.colorSpace = THREE.SRGBColorSpace;
@@ -657,7 +654,7 @@ export function createOfficeScene(container) {
     c.fillStyle = "rgba(255,255,255,0.95)";
     c.beginPath(); c.roundRect(4, 4, 248, 52, 14); c.fill();
     c.beginPath(); c.moveTo(110, 56); c.lineTo(128, 70); c.lineTo(146, 56); c.fill();
-    c.fillStyle = "#1a1a2e"; c.font = "17px 'Segoe UI', sans-serif"; c.textAlign = "center";
+    c.fillStyle = "#16224a"; c.font = "17px 'Segoe UI', sans-serif"; c.textAlign = "center";
     c.fillText(text, 128, 37);
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
@@ -676,7 +673,6 @@ export function createOfficeScene(container) {
     agentData.forEach((ad) => {
       if (ad.chatCooldown > 0) ad.chatCooldown -= delta;
       if (ad.working) {
-        // stay seated, type away
         if (!ad.sitting.visible) { ad.sitting.visible = true; ad.walker.visible = false; ad.state = "sitting"; }
         ad.sitting.children.forEach((ch) => {
           if (ch.userData.isArm) ch.position.z = 0.12 + Math.sin(elapsed * 18 + ch.userData.phase) * 0.02;
@@ -758,33 +754,33 @@ export function createOfficeScene(container) {
   }
 
   // ── Time of day / lights-off mode ────────────────────────────────────────
-  // Data centres are artificially lit — brightness stays high around the clock.
+  // Bright facility lighting all day; LIGHTS OFF flips to dark ops mode.
   let timeOfDay = 600;
   let cyberpunk = false;
-  const nightBg = new THREE.Color(0x04070f);
-  const dayBg = new THREE.Color(0x0a1230);
+  const nightBg = new THREE.Color(0x0a0f1e);
+  const dayBg = new THREE.Color(0x93a9d4);
   const bgTmp = new THREE.Color();
 
   function updateTime(min) {
     timeOfDay = min;
     drawClock(min);
     const rawDay = Math.max(0, Math.sin(((min - 360) / 720) * Math.PI)); // 6:00–18:00
-    const day = 0.8 + rawDay * 0.2; // facility lighting never truly dims
-    sun.intensity = cyberpunk ? 0.04 : 0.2 + day * 0.9;
-    sun.color.setHSL(0.58, 0.3, 0.6 + day * 0.3);
-    ambient.intensity = cyberpunk ? 0.1 : 0.34 + day * 0.34;
-    hemi.intensity = cyberpunk ? 0.05 : 0.18 + day * 0.25;
+    const day = 0.85 + rawDay * 0.15; // facility stays bright around the clock
+    sun.intensity = cyberpunk ? 0.05 : 0.5 + day * 0.9;
+    sun.color.setHSL(0.58, 0.12, 0.75);
+    ambient.intensity = cyberpunk ? 0.12 : 0.55 + day * 0.4;
+    hemi.intensity = cyberpunk ? 0.06 : 0.3 + day * 0.3;
     bgTmp.lerpColors(nightBg, cyberpunk ? nightBg : dayBg, day);
     scene.background = bgTmp;
     scene.fog.color.copy(bgTmp);
     tubes.forEach((tb) => {
-      tb.material = cyberpunk ? MB(0x1a2a4a) : MB(0xe8f4ff);
-      tb.userData.light.intensity = cyberpunk ? 0.03 : 0.25 + day * 0.2;
+      tb.material = cyberpunk ? MB(0x2a3a5f) : MB(0xffffff);
+      tb.userData.light.intensity = cyberpunk ? 0.04 : 0.4 + day * 0.2;
     });
-    coolGlow.intensity = cyberpunk ? 0.4 : 0.25;
-    const dark = cyberpunk; // only lights-off mode dims the console glows
+    coolGlow.intensity = cyberpunk ? 0.45 : 0.25;
+    const dark = cyberpunk;
     agentData.forEach((ad) => {
-      ad.glow.intensity = ad.working ? 0.8 : dark ? 0.22 : 0;
+      ad.glow.intensity = ad.working ? 0.8 : dark ? 0.25 : 0;
     });
   }
 
@@ -799,7 +795,6 @@ export function createOfficeScene(container) {
       ad.working = w;
       if (changed || w) ad.label.draw(w, currentStage);
       if (w && changed) {
-        // called back to console mid-wander
         ad.walker.visible = false; ad.sitting.visible = true;
         ad.state = "sitting"; ad.timer = 6 + rng.r(0, 10);
         ad.label.sprite.position.set(ad.home.x, 1.85, ad.home.z);
@@ -826,9 +821,8 @@ export function createOfficeScene(container) {
       screenData.forEach((sd) => { drawScreen(sd, frame); sd.tex.needsUpdate = true; });
     }
     if (frame % 15 === 0) {
-      racks.forEach((r) => r.draw()); // LEDs blink
+      racks.forEach((r) => r.draw());
     }
-    // data packets ride the cable trays
     packets.forEach((p) => {
       p.t += p.lane.dir * p.speed * delta;
       if (p.t > 8) p.t = -8;

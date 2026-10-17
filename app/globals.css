@@ -27,7 +27,16 @@ header.brand { display: flex; align-items: center; gap: 14px; margin-bottom: 8px
 header.brand .logo { font-size: 42px; }
 header.brand h1 { margin: 0; font-size: 30px; letter-spacing: 0.5px; }
 header.brand h1 span { color: var(--accent); }
+.div-badge {
+  margin-left: 6px; padding: 6px 14px; border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 176, 32, 0.15), rgba(255, 93, 143, 0.15));
+  border: 1px solid rgba(255, 176, 32, 0.4); color: var(--accent);
+  font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap;
+}
+@media (max-width: 700px) { .div-badge { display: none; } }
 .subtitle { color: var(--muted); margin: 0 0 28px 56px; }
+.subtitle strong { color: var(--text); }
 
 .pipeline { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px; }
 .pipeline .step-pill {
