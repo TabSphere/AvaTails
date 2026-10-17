@@ -22,8 +22,11 @@ Job Queue → 👔 Chief of Staff dispatches → ✍️ Scriptwriter → 🎙️
 
 ## Features
 
-- **🏭 Factory Floor** — live dashboard: agent status lights, current job progress,
-  activity feed, jobs queued / episodes made / estimated spend
+- **🏭 3D Factory Floor** — a live isometric 3D office (Three.js) where the 6 agents
+  sit at their desks. Driven by the **real** queue: agents glow, type and light up
+  their monitors while the pipeline has them working; idle agents wander to the
+  water cooler and chat. Drag to orbit, scroll to zoom, 🌙 LIGHTS OFF for night mode.
+  Adapted from [Gaurav2693/ai-office](https://github.com/Gaurav2693/ai-office) (MIT © Gaurav Mishra).
 - **📋 Job Queue** — enqueue the whole A–Z series at once; jobs live in Blob storage,
   not your browser, so production continues with the tab closed
 - **⏰ Cron worker** (`/api/cron/run-queue`, see `vercel.json`) — picks up one queued

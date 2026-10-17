@@ -1,6 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+
+const Office3D = dynamic(() => import("@/components/office/Office3D"), {
+  ssr: false,
+  loading: () => <div className="office-loading">🏭 Building the factory floor…</div>,
+});
 
 /* ── shared types ── */
 interface Scene {
@@ -63,15 +69,6 @@ interface HistoryEntry {
 }
 type LogEntry = { text: string; kind: "info" | "ok" | "err" };
 type Tab = "floor" | "queue" | "create" | "history" | "settings";
-
-const AGENTS = [
-  { id: "chief", name: "Chief of Staff", role: "Runs the queue, assigns jobs", emoji: "👔" },
-  { id: "writer", name: "Scriptwriter", role: "Writes 6-scene toddler episodes", emoji: "✍️" },
-  { id: "voice", name: "Voice Artist", role: "ElevenLabs narration per scene", emoji: "🎙️" },
-  { id: "artist", name: "Illustrator", role: "Cartoon scene art (OpenAI images)", emoji: "🎨" },
-  { id: "editor", name: "Video Editor", role: "Captions, transitions, music, MP4", emoji: "🎬" },
-  { id: "publisher", name: "Publisher", role: "Saves episodes + metadata", emoji: "📦" },
-];
 
 const DEFAULT_SETTINGS: Settings = {
   scriptModel: "gpt-4o-mini",
@@ -163,7 +160,12 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
 
   const runningJob = queue?.jobs.find((j) => j.status === "running");
   const queuedCount = queue?.jobs.filter((j) => j.status === "queued").length || 0;
-  const activeAgents = new Set<string>(runningJob?.agents || []);
+  const workingIds = runningJob?.agents || [];
+  const officeStatus = runningJob
+    ? `${runningJob.letter} is for ${runningJob.animal} — ${runningJob.stage || "starting"}`
+    : queuedCount > 0
+      ? `${queuedCount} job${queuedCount > 1 ? "s" : ""} waiting — agents standing by`
+      : "All agents idle — queue is empty";
 
   async function runNext() {
     setTriggering(true);
@@ -207,23 +209,15 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
       </div>
 
       <div className="card">
-        <h2>The team</h2>
-        <div className="agent-grid">
-          {AGENTS.map((a) => {
-            const working = activeAgents.has(a.id);
-            return (
-              <div key={a.id} className={`agent-card ${working ? "working" : ""}`}>
-                <div className="agent-emoji">{a.emoji}</div>
-                <div className="agent-name">{a.name}</div>
-                <div className="agent-role">{a.role}</div>
-                <div className={`agent-status ${working ? "on" : ""}`}>
-                  <span className="dot" />
-                  {working ? "Working…" : "Idle"}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <h2>🏭 The factory floor — live</h2>
+        <Office3D workingIds={workingIds} status={officeStatus} />
+        <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0, marginTop: 10 }}>
+          Drag to orbit · scroll to zoom · agents glow when the real pipeline has them working. 3D floor adapted from{" "}
+          <a href="https://github.com/Gaurav2693/ai-office" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+            ai-office
+          </a>{" "}
+          (MIT).
+        </p>
       </div>
 
       {runningJob && (
