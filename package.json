@@ -1,6 +1,6 @@
 {
   "name": "avatails",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "AvaTails — automated kids animal-learning video factory",
   "scripts": {
@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.2",
     "ffmpeg-static": "^5.2.0",
     "ffprobe-static": "^3.1.0",
     "next": "14.2.15",

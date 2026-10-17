@@ -15,11 +15,54 @@ export interface EpisodeScript {
   scenes: Scene[];
 }
 
-/** A scene after voice + image assets have been generated. */
-export interface RenderScene {
+/** Per-request overrides coming from the Settings tab. */
+export interface FactorySettings {
+  scriptModel?: string;
+  imageModel?: string;
+  voiceId?: string;
+  /** Crossfade transitions between scenes. */
+  transitions?: boolean;
+  /** Background music: blob URL or data URL (mp3). Optional. */
+  musicUrl?: string | null;
+}
+
+/** A scene after assets exist. Uses blob URLs when storage is on, else data URLs. */
+export interface EpisodeSceneAsset extends Scene {
+  imageUrl?: string;
+  audioUrl?: string;
+}
+
+export interface Episode {
+  id: string;
+  letter: string;
+  animal: string;
+  script: EpisodeScript;
+  scenes: EpisodeSceneAsset[];
+  videoUrl?: string;
+  bytes?: number;
+  createdAt: string;
+  status: "done" | "failed";
+  error?: string;
+}
+
+/** NDJSON progress event streamed by /api/episodes. */
+export interface ProgressEvent {
+  type: "progress" | "episode" | "error";
+  stage?: string;
+  message: string;
+  /** 0–100 */
+  progress?: number;
+  episode?: Episode;
+}
+
+/** A scene ready for the render engine (binary in). */
+export interface RenderInput {
   caption: string;
-  /** data URL (image/jpeg;base64,...) */
-  image: string;
-  /** data URL (audio/mpeg;base64,...) */
-  audio: string;
+  image: Buffer;
+  audio: Buffer;
+}
+
+export interface RenderOptions {
+  transitions?: boolean;
+  music?: Buffer | null;
 }

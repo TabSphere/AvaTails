@@ -1,6 +1,6 @@
 # 🐊 AvaTails Factory
 
-The automated video factory for the **AvaTails** YouTube Kids channel
+The production video factory for the **AvaTails** YouTube Kids channel
 ([youtube.com/@AvaTails](https://www.youtube.com/@AvaTails)) — toddler animal-learning
 episodes ("A is for Alligator!"), generated end to end:
 
@@ -8,26 +8,53 @@ episodes ("A is for Alligator!"), generated end to end:
 Letter + Animal → AI script → ElevenLabs voiceover → AI illustrations → rendered MP4
 ```
 
-One repeatable episode format, one click per stage, finished vertical video ready to upload.
+## Features
+
+- **One-click episodes** — a single streaming pipeline call writes the script, generates
+  all voiceovers and illustrations **in parallel**, renders, and saves the video
+- **Batch A–Z mode** — queue a whole series (`A, Alligator` … `Z, Zebra`), one episode at
+  a time, with per-episode download links
+- **Episode history** — every render is persisted to Vercel Blob with thumbnails and
+  metadata (when storage is attached)
+- **Professional render engine** — burned-in captions, Ken Burns zoom, crossfade
+  transitions, loudness-normalized voiceover, optional background music bed
+- **Password gate** — set `FACTORY_PASSWORD` and the whole app sits behind a login page
+- **Settings tab** — voice, models, transitions, and music, adjustable without redeploys
 
 ## Stack
 
-- **Next.js 14** (App Router, TypeScript) — dashboard + API pipeline
-- **OpenAI** — episode scripts (`gpt-4o-mini`) and scene illustrations (`gpt-image-1`, `dall-e-3` fallback)
-- **ElevenLabs** — voiceover per scene
-- **FFmpeg** (`ffmpeg-static`) + **sharp** — caption burn-in, Ken Burns zoom, MP4 assembly
+- **Next.js 14** (App Router, TypeScript)
+- **OpenAI** — scripts (`gpt-4o-mini`) + illustrations (`gpt-image-1`, `dall-e-3` fallback)
+- **ElevenLabs** — per-scene voiceover
+- **FFmpeg** (`ffmpeg-static`) + **sharp** — caption burn-in, transitions, music mix, MP4 assembly
+- **Vercel Blob** — asset + episode persistence (optional but recommended)
 
-## API pipeline
+## API
 
-| Route | Stage | In → Out |
-|---|---|---|
-| `POST /api/script` | Scriptwriter | `{ letter, animal }` → 6-scene episode JSON (title, description, tags, scenes) |
-| `POST /api/voice` | Voice bot | `{ text }` → mp3 data URL |
-| `POST /api/image` | Visual bot | `{ prompt }` → JPEG data URL |
-| `POST /api/render` | Video factory | `{ scenes: [{ caption, image, audio }] }` → MP4 data URL |
+| Route | Purpose |
+|---|---|
+| `POST /api/episodes` | **Main pipeline.** Streams NDJSON progress events, ends with the finished episode |
+| `GET /api/episodes` | Episode history (from Blob storage) |
+| `POST /api/music` | Upload the background music bed once, reuse forever |
+| `POST /api/script` `/api/voice` `/api/image` `/api/render` | Individual stages (manual/advanced use) |
+| `POST /api/auth/login` | Password gate (active when `FACTORY_PASSWORD` is set) |
 
-The episode format is locked in `lib/prompts.ts` (letter intro → animal reveal → animal
-sound → fun fact → action → recap). Change it there and every future episode follows.
+The episode format is locked in `lib/prompts.ts` (letter intro → animal reveal → sound →
+fun fact → action → recap). Change it there and every future episode follows.
+
+## Deploy to Vercel
+
+1. **Add New → Project** → import `TabSphere/AvaTails`.
+2. Environment variables (see `.env.example`):
+   - `OPENAI_API_KEY`, `ELEVENLABS_API_KEY` — required
+   - `FACTORY_PASSWORD` — recommended
+3. **Storage tab → Create Blob store** (free tier) — attaches `BLOB_READ_WRITE_TOKEN`
+   automatically, enabling History + music uploads.
+4. Deploy → open → sign in → generate your first episode.
+
+> ⚠️ **Plan note:** the full pipeline (script + 6 voices + 6 images + render) takes
+> 1–3 minutes. Vercel **Pro** allows 300s functions; on **Hobby** (60s) long episodes may
+> time out — run locally (`npm run dev`) or split work via the staged routes.
 
 ## Local development
 
@@ -37,38 +64,14 @@ npm install
 npm run dev                  # http://localhost:3000
 ```
 
-## Deploy to Vercel
-
-1. Push this repo to GitHub (done — you're reading it).
-2. [vercel.com](https://vercel.com) → **Add New → Project** → import `TabSphere/AvaTails`.
-3. Add environment variables from `.env.example` (**OPENAI_API_KEY** and
-   **ELEVENLABS_API_KEY** are required).
-4. Deploy.
-
-> ⚠️ **Plan note:** video rendering is CPU-bound. Vercel **Hobby** caps functions at 60s —
-> short episodes usually fit, but if renders time out, upgrade to **Pro** (300s) or run
-> the render step locally with `npm run dev`. Serverless bodies are limited to ~4.5MB, so
-> the renderer automatically drops resolution/bitrate until the MP4 fits.
-
-## Usage
-
-1. Open the dashboard, pick a **letter + animal** (A → Alligator, B → Bear, …).
-2. **Generate script** → review the 6 scenes.
-3. **Generate voice + visuals** → per-scene voiceover and illustration.
-4. **Render video** → preview + download the MP4.
-5. Upload to YouTube Studio, paste the generated title/description/tags, and set
-   **"Made for Kids"** (required by COPPA).
-
 ## Cost per episode (approx.)
 
-- Script: < $0.01
-- 6 images (gpt-image-1 medium): ~$0.10–0.15
-- Voiceover (~100 chars × 6): a few cents on ElevenLabs
+- Script: < $0.01 · 6 images (gpt-image-1 medium): ~$0.10–0.15 · Voiceover: a few cents
 
 ## Roadmap
 
-- [ ] YouTube Data API auto-upload with scheduling (OAuth refresh token + `madeForKids` flag)
-- [ ] Vercel Blob storage for rendered episodes (lifts the 4.5MB response cap)
-- [ ] Batch mode: generate the whole A–Z series in one run
+- [ ] YouTube Data API auto-upload with scheduling (`madeForKids` flag auto-set)
+- [ ] Background job queue (QStash) so batches run without an open browser tab
 - [ ] Compilation stitcher: 10 episodes → 15-min compilation video
 - [ ] WildTails mode: same factory, animal-facts template for the sister channel
+- [ ] Per-series visual identity (consistent character sets via reference images)

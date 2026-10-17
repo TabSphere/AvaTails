@@ -5,18 +5,20 @@ import path from "path";
 import sharp from "sharp";
 import ffmpegPath from "ffmpeg-static";
 import ffprobe from "ffprobe-static";
-import type { RenderScene } from "./types";
+import type { RenderInput, RenderOptions } from "./types";
 
 // ffmpeg-static/ffprobe-static ship binaries (downloaded at install time);
 // the env overrides are for local dev on filesystems without exec permissions.
 const FFMPEG = process.env.FFMPEG_PATH || (ffmpegPath as unknown as string) || "ffmpeg";
 const FFPROBE = process.env.FFPROBE_PATH || (ffprobe as unknown as { path: string }).path;
 
+const FADE = 0.5; // seconds, crossfade between scenes
+
 function run(cmd: string, args: string[]): void {
-  execFileSync(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
+  execFileSync(cmd, args, { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
 }
 
-/** Duration of an audio file in seconds. */
+/** Duration of a media file in seconds. */
 export function probeDuration(file: string): number {
   const out = execFileSync(
     FFPROBE,
@@ -82,7 +84,10 @@ export async function composeSceneImage(
     .toFile(outFile);
 }
 
-/** Render one scene: still image + gentle zoom (Ken Burns) + its voiceover. */
+/**
+ * Render one scene: still image + gentle zoom (Ken Burns) + voiceover.
+ * Audio is loudness-normalized so every scene sits at the same volume.
+ */
 function renderScene(
   imageFile: string,
   audioFile: string,
@@ -106,6 +111,7 @@ function renderScene(
     "-filter_complex", filter,
     "-map", "[v]",
     "-map", "1:a",
+    "-af", "loudnorm=I=-15:TP=-1.5:LRA=11",
     "-t", duration.toFixed(3),
     "-r", "30",
     "-c:v", "libx264",
@@ -119,17 +125,65 @@ function renderScene(
   ]);
 }
 
-/** Concatenate uniformly-encoded scene mp4s into the final episode. */
-function concatScenes(sceneFiles: string[], outFile: string, workDir: string): void {
+/** Join scenes with crossfade transitions (video xfade + audio acrossfade). */
+function joinWithTransitions(sceneFiles: string[], durations: number[], outFile: string): void {
+  const inputs = sceneFiles.flatMap((f) => ["-i", f]);
+  const parts: string[] = [];
+  let vLabel = "0:v";
+  let aLabel = "0:a";
+  let offset = durations[0] - FADE;
+  for (let k = 1; k < sceneFiles.length; k++) {
+    parts.push(`[${vLabel}][${k}:v]xfade=transition=fade:duration=${FADE}:offset=${offset.toFixed(3)}[v${k}]`);
+    parts.push(`[${aLabel}][${k}:a]acrossfade=d=${FADE}:c1=tri:c2=tri[a${k}]`);
+    vLabel = `v${k}`;
+    aLabel = `a${k}`;
+    offset += durations[k] - FADE;
+  }
+  run(FFMPEG, [
+    "-y",
+    ...inputs,
+    "-filter_complex", parts.join(";"),
+    "-map", `[${vLabel}]`,
+    "-map", `[${aLabel}]`,
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-crf", "24",
+    "-c:a", "aac",
+    "-b:a", "128k",
+    "-movflags", "+faststart",
+    outFile,
+  ]);
+}
+
+/** Join scenes with plain cuts (concat demuxer, stream copy). */
+function joinWithCuts(sceneFiles: string[], outFile: string, workDir: string): void {
   const listFile = path.join(workDir, "concat.txt");
   fs.writeFileSync(listFile, sceneFiles.map((f) => `file '${f}'`).join("\n"));
   run(FFMPEG, ["-y", "-f", "concat", "-safe", "0", "-i", listFile, "-c", "copy", "-movflags", "+faststart", outFile]);
 }
 
-const dataUrlToBuffer = (dataUrl: string): Buffer =>
-  Buffer.from(dataUrl.replace(/^data:[^;]+;base64,/, ""), "base64");
+/** Mix a looped background music bed under the voiceover. */
+function mixMusic(videoFile: string, musicFile: string, outFile: string, totalDuration: number): void {
+  const fadeOutStart = Math.max(0, totalDuration - 2);
+  run(FFMPEG, [
+    "-y",
+    "-i", videoFile,
+    "-stream_loop", "-1",
+    "-i", musicFile,
+    "-filter_complex",
+    `[1:a]volume=0.12,afade=t=in:st=0:d=1.5,afade=t=out:st=${fadeOutStart.toFixed(2)}:d=2[mus];` +
+      `[0:a][mus]amix=inputs=2:duration=first:dropout_transition=0[aout]`,
+    "-map", "0:v",
+    "-map", "[aout]",
+    "-c:v", "copy",
+    "-c:a", "aac",
+    "-b:a", "128k",
+    "-movflags", "+faststart",
+    outFile,
+  ]);
+}
 
-/** Response size guard for serverless platforms (~4.5MB body limit). */
+/** Response size guard for the data-URL fallback path (~4.5MB body limit). */
 const MAX_RESPONSE_BYTES = 3.8 * 1024 * 1024;
 
 const ATTEMPTS: Array<{ width: number; height: number; crf: number }> = [
@@ -139,39 +193,57 @@ const ATTEMPTS: Array<{ width: number; height: number; crf: number }> = [
 ];
 
 /**
- * Full episode render: caption burn-in -> per-scene video -> concat.
- * Returns the finished MP4 as a Buffer. Retries at lower quality if the
- * result would exceed the serverless response-size limit.
+ * Full episode render: caption burn-in -> per-scene video (Ken Burns + loudnorm)
+ * -> transitions or cuts -> optional music bed -> finished MP4 buffer.
+ * Retries at lower quality if the result exceeds `sizeGuard`.
  */
-export async function renderEpisode(scenes: RenderScene[]): Promise<Buffer> {
+export async function renderEpisode(
+  scenes: RenderInput[],
+  opts: RenderOptions = {},
+  sizeGuard: number = MAX_RESPONSE_BYTES
+): Promise<Buffer> {
   if (!scenes.length) throw new Error("No scenes to render");
   const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "avatails-"));
   try {
-    const prepared: Array<{ img: string; audio: string; dur: number }> = [];
-    for (let i = 0; i < scenes.length; i++) {
+    const prepared = scenes.map((s, i) => {
       const audioFile = path.join(workDir, `voice-${i}.mp3`);
-      fs.writeFileSync(audioFile, dataUrlToBuffer(scenes[i].audio));
-      const dur = probeDuration(audioFile);
-      prepared.push({ img: "", audio: audioFile, dur });
-    }
+      fs.writeFileSync(audioFile, s.audio);
+      return { audioFile, dur: probeDuration(audioFile) };
+    });
+
+    const musicFile = opts.music ? path.join(workDir, "music.mp3") : null;
+    if (musicFile && opts.music) fs.writeFileSync(musicFile, opts.music);
 
     for (const attempt of ATTEMPTS) {
       const sceneFiles: string[] = [];
       for (let i = 0; i < scenes.length; i++) {
         const imgFile = path.join(workDir, `scene-${i}-${attempt.width}.jpg`);
-        await composeSceneImage(dataUrlToBuffer(scenes[i].image), scenes[i].caption, attempt.width, attempt.height, imgFile);
+        await composeSceneImage(scenes[i].image, scenes[i].caption, attempt.width, attempt.height, imgFile);
         const sceneMp4 = path.join(workDir, `scene-${i}-${attempt.width}.mp4`);
-        renderScene(imgFile, prepared[i].audio, sceneMp4, prepared[i].dur, attempt.width, attempt.height, attempt.crf);
+        renderScene(imgFile, prepared[i].audioFile, sceneMp4, prepared[i].dur, attempt.width, attempt.height, attempt.crf);
         sceneFiles.push(sceneMp4);
       }
-      const finalFile = path.join(workDir, `final-${attempt.width}.mp4`);
-      concatScenes(sceneFiles, finalFile, workDir);
-      const buf = fs.readFileSync(finalFile);
-      if (buf.byteLength <= MAX_RESPONSE_BYTES) return buf;
+
+      let joined = path.join(workDir, `joined-${attempt.width}.mp4`);
+      if (opts.transitions && sceneFiles.length > 1) {
+        joinWithTransitions(sceneFiles, prepared.map((p) => p.dur), joined);
+      } else {
+        joinWithCuts(sceneFiles, joined, workDir);
+      }
+
+      if (musicFile) {
+        const total = prepared.reduce((a, p) => a + p.dur, 0) - (opts.transitions ? FADE * (scenes.length - 1) : 0);
+        const mixed = path.join(workDir, `mixed-${attempt.width}.mp4`);
+        mixMusic(joined, musicFile, mixed, total);
+        joined = mixed;
+      }
+
+      const buf = fs.readFileSync(joined);
+      if (buf.byteLength <= sizeGuard) return buf;
     }
     throw new Error(
-      "Rendered video exceeds the serverless response limit even at lowest quality. " +
-        "Shorten the episode or add object storage (e.g. Vercel Blob) for delivery."
+      "Rendered video exceeds the response-size limit even at lowest quality. " +
+        "Enable Vercel Blob storage (BLOB_READ_WRITE_TOKEN) to lift the limit."
     );
   } finally {
     fs.rmSync(workDir, { recursive: true, force: true });
