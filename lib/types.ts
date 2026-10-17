@@ -40,15 +40,19 @@ export interface Episode {
   scenes: EpisodeSceneAsset[];
   videoUrl?: string;
   bytes?: number;
+  /** Estimated generation cost in USD (see lib/cost.ts). */
+  costUSD?: number;
   createdAt: string;
   status: "done" | "failed";
   error?: string;
 }
 
-/** NDJSON progress event streamed by /api/episodes. */
+/** NDJSON progress event streamed by /api/episodes and the queue runner. */
 export interface ProgressEvent {
   type: "progress" | "episode" | "error";
   stage?: string;
+  /** Agents currently working (drives the Factory Floor status lights). */
+  agents?: string[];
   message: string;
   /** 0–100 */
   progress?: number;

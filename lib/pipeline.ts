@@ -1,9 +1,10 @@
 // The auto-pipeline: one call turns "A + Alligator" into a finished episode.
-// Streams progress via a callback; persists to Vercel Blob when configured.
+// Streams agent-tagged progress via a callback; persists to Vercel Blob when configured.
 import crypto from "crypto";
 import { generateScript, generateVoice, generateImage } from "./ai";
 import { renderEpisode } from "./ffmpeg";
 import { blobEnabled, saveEpisode, saveBuffer } from "./storage";
+import { estimateEpisodeCost } from "./cost";
 import type { Episode, FactorySettings, ProgressEvent, RenderInput } from "./types";
 
 type ProgressFn = (e: ProgressEvent) => void;
@@ -24,8 +25,8 @@ export async function runEpisode(
   settings: FactorySettings,
   onProgress: ProgressFn
 ): Promise<Episode> {
-  const say = (stage: string, message: string, progress: number) =>
-    onProgress({ type: "progress", stage, message, progress });
+  const say = (stage: string, message: string, progress: number, agents?: string[]) =>
+    onProgress({ type: "progress", stage, message, progress, agents });
 
   const episode: Episode = {
     id: crypto.randomBytes(6).toString("hex"),
@@ -38,14 +39,14 @@ export async function runEpisode(
   };
 
   try {
-    // ── Stage 1: script ────────────────────────────────────────────────
-    say("script", `Writing script: ${episode.letter} is for ${animal}…`, 5);
+    // ── Stage 1: script (agent: writer) ────────────────────────────────
+    say("script", `Scriptwriter is drafting: ${episode.letter} is for ${animal}…`, 5, ["writer"]);
     episode.script = await generateScript(letter, animal, settings.scriptModel);
     episode.scenes = episode.script.scenes.map((s) => ({ ...s }));
     say("script", `Script ready — ${episode.scenes.length} scenes: "${episode.script.title}"`, 15);
 
-    // ── Stage 2: voice + visuals, generated in parallel ────────────────
-    say("assets", "Generating voiceovers and illustrations in parallel…", 20);
+    // ── Stage 2: voice + visuals, in parallel (agents: voice, artist) ──
+    say("assets", "Voice Artist + Illustrator are producing all scenes in parallel…", 20, ["voice", "artist"]);
     const sceneInputs: RenderInput[] = new Array(episode.scenes.length);
     let done = 0;
     await Promise.all(
@@ -63,12 +64,17 @@ export async function runEpisode(
         }
         sceneInputs[i] = { caption: scene.line, image, audio };
         done += 1;
-        say("assets", `Scene ${scene.id} assets ready (${done}/${episode.scenes.length})`, 20 + Math.round((done / episode.scenes.length) * 40));
+        say(
+          "assets",
+          `Scene ${scene.id} voiced + illustrated (${done}/${episode.scenes.length})`,
+          20 + Math.round((done / episode.scenes.length) * 40),
+          ["voice", "artist"]
+        );
       })
     );
 
-    // ── Stage 3: render ────────────────────────────────────────────────
-    say("render", "Rendering video (captions, transitions, music)…", 65);
+    // ── Stage 3: render (agent: editor) ────────────────────────────────
+    say("render", "Video Editor is assembling: captions, transitions, music…", 65, ["editor"]);
     const music = settings.musicUrl ? await resolveToBuffer(settings.musicUrl) : null;
     const video = await renderEpisode(
       sceneInputs,
@@ -77,15 +83,20 @@ export async function runEpisode(
     );
     say("render", `Video rendered — ${(video.byteLength / 1024 / 1024).toFixed(1)} MB`, 90);
 
-    // ── Stage 4: persist / deliver ─────────────────────────────────────
+    // ── Stage 4: persist / deliver (agent: publisher) ──────────────────
+    episode.costUSD = estimateEpisodeCost({
+      voiceChars: episode.scenes.reduce((a, s) => a + s.line.length, 0),
+      imageCount: episode.scenes.length,
+      imageModel: settings.imageModel,
+    }).totalUSD;
     if (blobEnabled()) {
-      say("save", "Saving episode to storage…", 95);
+      say("save", "Publisher is filing the episode…", 95, ["publisher"]);
       await saveEpisode(episode, video);
     } else {
       episode.videoUrl = `data:video/mp4;base64,${video.toString("base64")}`;
       episode.bytes = video.byteLength;
     }
-    say("save", "Episode complete! 🎉", 100);
+    say("save", `Episode complete! 🎉 (est. cost $${episode.costUSD.toFixed(3)})`, 100);
     return episode;
   } catch (e) {
     episode.status = "failed";
