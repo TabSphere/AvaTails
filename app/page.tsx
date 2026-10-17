@@ -39,7 +39,7 @@ interface QueueJob {
   id: string;
   letter: string;
   animal: string;
-  status: "queued" | "running" | "done" | "failed";
+  status: "queued" | "running" | "waiting" | "done" | "failed";
   stage?: string;
   agents?: string[];
   progress?: number;
@@ -86,6 +86,18 @@ const BRANDS = [
   { id: "wildtails", name: "WildTails", emoji: "🦁", tagline: "Wild nature shorts" },
 ] as const;
 type BrandId = (typeof BRANDS)[number]["id"];
+
+/* Approval gate — the Publisher holds finished episodes until the boss taps OK. */
+async function decideJob(jobId: string, action: "approve" | "reject", note?: string): Promise<string> {
+  const res = await fetch("/api/queue/approve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jobId, action, note }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "approval failed");
+  return action === "approve" ? "✅ Approved — episode shipped to History." : "❌ Rejected — job marked failed.";
+}
 
 const loadSettings = (): Settings => {
   try {
@@ -172,15 +184,38 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
   const [triggering, setTriggering] = useState(false);
   const [brand, setBrand] = useState<BrandId>("avatails");
   const activeBrand = BRANDS.find((b) => b.id === brand) || BRANDS[0];
+  const [deciding, setDeciding] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
+  const [decisionMsg, setDecisionMsg] = useState("");
 
   const runningJob = queue?.jobs.find((j) => j.status === "running");
+  const waitingJob = queue?.jobs.find((j) => j.status === "waiting");
   const queuedCount = queue?.jobs.filter((j) => j.status === "queued").length || 0;
-  const workingIds = runningJob?.agents || [];
+  // Pipeline running → its agents glow. Waiting on approval → the Publisher waves.
+  const workingIds = runningJob?.agents || (waitingJob ? ["publisher"] : []);
+  const boardJob = runningJob || waitingJob;
   const officeStatus = runningJob
     ? `${runningJob.letter} is for ${runningJob.animal} — ${runningJob.stage || "starting"}`
-    : queuedCount > 0
-      ? `${queuedCount} job${queuedCount > 1 ? "s" : ""} waiting — agents standing by`
-      : "All agents idle — queue is empty";
+    : waitingJob
+      ? `${waitingJob.letter} is for ${waitingJob.animal} — Publisher needs your OK ✋`
+      : queuedCount > 0
+        ? `${queuedCount} job${queuedCount > 1 ? "s" : ""} waiting — agents standing by`
+        : "All agents idle — queue is empty";
+
+  async function decide(jobId: string, action: "approve" | "reject") {
+    setDeciding(true);
+    try {
+      setDecisionMsg(await decideJob(jobId, action, action === "reject" ? rejectNote : undefined));
+      setRejectNote("");
+      const d = await fetch("/api/queue").then((r) => r.json());
+      // queue state refresh happens via the poller; this just speeds it up
+      void d;
+    } catch (e) {
+      setDecisionMsg(`❌ ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setDeciding(false);
+    }
+  }
 
   async function runNext() {
     setTriggering(true);
@@ -192,7 +227,7 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
         body: JSON.stringify({ settings }),
       });
       const data = await res.json();
-      if (data.ran && !data.error) setTriggerMsg(`✅ Job done — episode ${data.episodeId} is in History.`);
+      if (data.ran && !data.error) setTriggerMsg(`✋ Episode produced — the Publisher is holding it for your OK.`);
       else if (data.error) setTriggerMsg(`❌ ${data.error}`);
       else setTriggerMsg("💤 Queue is empty — add jobs in the Job Queue tab.");
     } catch (e) {
@@ -245,9 +280,9 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
           brand={brand}
           workingIds={workingIds}
           status={officeStatus}
-          stage={runningJob?.stage}
-          progress={runningJob?.progress}
-          jobTitle={runningJob ? `${runningJob.letter} is for ${runningJob.animal}` : undefined}
+          stage={runningJob?.stage ?? (waitingJob ? "needs approval" : undefined)}
+          progress={boardJob?.progress}
+          jobTitle={boardJob ? `${boardJob.letter} is for ${boardJob.animal}` : undefined}
         />
         <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0, marginTop: 10 }}>
           Drag to orbit · scroll to zoom · agents glow when the real pipeline has them working. Data-centre floor adapted from{" "}
@@ -257,6 +292,44 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
           (MIT).
         </p>
       </div>
+
+      {waitingJob && !runningJob && (
+        <div className="card approval-card">
+          <h2>✋ Waiting for your OK</h2>
+          <div className="scene-row">
+            <div className="thumb placeholder">{waitingJob.letter}</div>
+            <div className="line">
+              <strong>
+                {waitingJob.letter} is for {waitingJob.animal}
+              </strong>
+              <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                Episode produced{waitingJob.costUSD != null && ` · $${waitingJob.costUSD.toFixed(3)}`} — the Publisher
+                won't ship it until you approve.
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+            <button style={{ marginTop: 0 }} onClick={() => decide(waitingJob.id, "approve")} disabled={deciding}>
+              ✅ Approve — ship it
+            </button>
+            <button
+              className="secondary"
+              style={{ marginTop: 0 }}
+              onClick={() => decide(waitingJob.id, "reject")}
+              disabled={deciding}
+            >
+              ❌ Reject
+            </button>
+          </div>
+          <input
+            type="text"
+            placeholder="Reject note (optional) — e.g. intro too long"
+            value={rejectNote}
+            onChange={(e) => setRejectNote(e.target.value)}
+          />
+          {decisionMsg && <p style={{ fontSize: 13, marginBottom: 0 }}>{decisionMsg}</p>}
+        </div>
+      )}
 
       {runningJob && (
         <div className="card">
@@ -313,7 +386,19 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
     "A, Alligator\nB, Bear\nC, Cat\nD, Dog\nE, Elephant\nF, Frog\nG, Giraffe\nH, Hippo\nI, Iguana\nJ, Jaguar\nK, Koala\nL, Lion\nM, Monkey\nN, Narwhal\nO, Owl\nP, Penguin\nQ, Quokka\nR, Rabbit\nS, Snake\nT, Tiger\nU, Unau\nV, Vulture\nW, Whale\nX, X-ray Fish\nY, Yak\nZ, Zebra"
   );
   const [msg, setMsg] = useState("");
+  const [decidingId, setDecidingId] = useState("");
   void settings;
+
+  async function decide(jobId: string, action: "approve" | "reject") {
+    setDecidingId(jobId);
+    try {
+      setMsg(await decideJob(jobId, action));
+    } catch (e) {
+      setMsg(`❌ ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setDecidingId("");
+    }
+  }
 
   async function enqueue() {
     const jobs = input
@@ -371,10 +456,29 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
                 {j.costUSD != null && ` · $${j.costUSD.toFixed(3)}`}
               </div>
               {j.error && <div style={{ color: "var(--err)", fontSize: 12 }}>{j.error}</div>}
+              {j.status === "waiting" && (
+                <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                  <button
+                    className="mini ok"
+                    disabled={decidingId === j.id}
+                    onClick={() => decide(j.id, "approve")}
+                  >
+                    ✅ Approve
+                  </button>
+                  <button
+                    className="mini"
+                    disabled={decidingId === j.id}
+                    onClick={() => decide(j.id, "reject")}
+                  >
+                    ❌ Reject
+                  </button>
+                </div>
+              )}
             </div>
             <div className="status">
               {j.status === "queued" && "⏸️"}
               {j.status === "running" && `⏳ ${j.progress ?? 0}%`}
+              {j.status === "waiting" && "✋"}
               {j.status === "done" && "✅"}
               {j.status === "failed" && "❌"}
             </div>
