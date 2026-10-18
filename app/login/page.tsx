@@ -33,7 +33,7 @@ export default function LoginPage() {
   return (
     <div className="container" style={{ maxWidth: 420, paddingTop: 120 }}>
       <header className="brand" style={{ justifyContent: "center" }}>
-        <div className="logo">🐊</div>
+        <div className="logo">TS</div>
         <h1>
           Ava<span>Tails</span> Factory
         </h1>
