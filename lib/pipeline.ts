@@ -40,6 +40,10 @@ export async function runEpisode(
     status: "done",
   };
 
+  // Narration pace per channel: toddlers need slow, warm delivery;
+  // the WildTails nature host stays brisk but never rushed.
+  const voiceSpeed = episode.channel === "wildtails" ? 0.95 : 0.88;
+
   try {
     // ── Stage 1: script (agent: writer) ────────────────────────────────
     const draftMsg =
@@ -58,7 +62,7 @@ export async function runEpisode(
     await Promise.all(
       episode.scenes.map(async (scene, i) => {
         const [audio, image] = await Promise.all([
-          generateVoice(scene.line, settings.voiceId),
+          generateVoice(scene.line, settings.voiceId, voiceSpeed),
           generateImage(scene.imagePrompt, settings.imageModel, episode.channel),
         ]);
         if (blobEnabled()) {
@@ -102,7 +106,7 @@ export async function runEpisode(
       episode.videoUrl = `data:video/mp4;base64,${video.toString("base64")}`;
       episode.bytes = video.byteLength;
     }
-    say("save", `Episode complete! 🎉 (est. cost $${episode.costUSD.toFixed(3)})`, 100);
+    say("save", `Episode complete (est. cost $${episode.costUSD.toFixed(3)})`, 100);
     return episode;
   } catch (e) {
     episode.status = "failed";
