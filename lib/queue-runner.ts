@@ -4,6 +4,7 @@
 import { runEpisode } from "./pipeline";
 import { nextQueuedJob, updateJob } from "./queue";
 import { blobEnabled } from "./storage";
+import { notifyWaitingForApproval } from "./telegram";
 import type { FactorySettings } from "./types";
 
 export interface RunResult {
@@ -20,7 +21,7 @@ export async function runNextJob(settings: FactorySettings): Promise<RunResult> 
   const job = await nextQueuedJob();
   if (!job) return { ran: false };
 
-  await updateJob(job.id, { status: "running", progress: 0, logTail: ["Chief of Staff picked up the job 👔"] });
+  await updateJob(job.id, { status: "running", progress: 0, logTail: ["Chief of Staff picked up the job"] });
 
   // Progress writes are serialized into a chain. Fire-and-forget writes race
   // each other (read-modify-write on one JSON doc), and a slow stale write
@@ -48,7 +49,7 @@ export async function runNextJob(settings: FactorySettings): Promise<RunResult> 
     await flushWrites();
     // Approval gate: the episode is produced, but nothing counts as "done"
     // until the boss approves it (POST /api/queue/approve). The Publisher
-    // stands by, waving, until then.
+    // stands by until then — and Telegram gets the review copy.
     await updateJob(job.id, {
       status: "waiting",
       stage: "awaiting your approval",
@@ -56,8 +57,16 @@ export async function runNextJob(settings: FactorySettings): Promise<RunResult> 
       agents: ["publisher"] as never,
       episodeId: episode.id,
       costUSD: episode.costUSD,
-      logTail: [...(job.logTail || []), "✋ Episode ready — Publisher needs your OK"],
+      logTail: [...(job.logTail || []), "Episode ready — waiting for your approval"],
     });
+    // Best-effort Telegram delivery; never blocks or fails the job.
+    await notifyWaitingForApproval({
+      jobId: job.id,
+      title: episode.script.title || `${job.letter} is for ${job.animal}`,
+      channel: job.channel || "avatails",
+      videoUrl: episode.videoUrl,
+      costUSD: episode.costUSD,
+    }).catch(() => {});
     return { ran: true, jobId: job.id, episodeId: episode.id };
   } catch (e) {
     await flushWrites();
