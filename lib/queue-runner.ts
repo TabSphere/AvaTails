@@ -35,7 +35,7 @@ export async function runNextJob(settings: FactorySettings): Promise<RunResult> 
           logTail: tail,
         }).catch(() => {});
       }
-    });
+    }, job.channel);
     // Approval gate: the episode is produced, but nothing counts as "done"
     // until the boss approves it (POST /api/queue/approve). The Publisher
     // stands by, waving, until then.

@@ -23,7 +23,8 @@ export async function runEpisode(
   letter: string,
   animal: string,
   settings: FactorySettings,
-  onProgress: ProgressFn
+  onProgress: ProgressFn,
+  channel?: string
 ): Promise<Episode> {
   const say = (stage: string, message: string, progress: number, agents?: string[]) =>
     onProgress({ type: "progress", stage, message, progress, agents });
@@ -32,6 +33,7 @@ export async function runEpisode(
     id: crypto.randomBytes(6).toString("hex"),
     letter: letter.toUpperCase(),
     animal,
+    channel: channel || "avatails",
     script: { title: "", description: "", tags: [], scenes: [] },
     scenes: [],
     createdAt: new Date().toISOString(),
@@ -40,8 +42,12 @@ export async function runEpisode(
 
   try {
     // ── Stage 1: script (agent: writer) ────────────────────────────────
-    say("script", `Scriptwriter is drafting: ${episode.letter} is for ${animal}…`, 5, ["writer"]);
-    episode.script = await generateScript(letter, animal, settings.scriptModel);
+    const draftMsg =
+      episode.channel === "wildtails"
+        ? `Scriptwriter is digging up wild facts about the ${animal}…`
+        : `Scriptwriter is drafting: ${episode.letter} is for ${animal}…`;
+    say("script", draftMsg, 5, ["writer"]);
+    episode.script = await generateScript(letter, animal, settings.scriptModel, episode.channel);
     episode.scenes = episode.script.scenes.map((s) => ({ ...s }));
     say("script", `Script ready — ${episode.scenes.length} scenes: "${episode.script.title}"`, 15);
 
@@ -53,7 +59,7 @@ export async function runEpisode(
       episode.scenes.map(async (scene, i) => {
         const [audio, image] = await Promise.all([
           generateVoice(scene.line, settings.voiceId),
-          generateImage(scene.imagePrompt, settings.imageModel),
+          generateImage(scene.imagePrompt, settings.imageModel, episode.channel),
         ]);
         if (blobEnabled()) {
           const base = `episodes/${episode.id}`;

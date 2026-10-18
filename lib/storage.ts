@@ -17,6 +17,7 @@ interface EpisodeIndexEntry {
   id: string;
   letter: string;
   animal: string;
+  channel?: string;
   title: string;
   videoUrl?: string;
   thumbUrl?: string;
@@ -54,6 +55,7 @@ export async function saveEpisode(episode: Episode, video: Buffer | null): Promi
     id: episode.id,
     letter: episode.letter,
     animal: episode.animal,
+    channel: episode.channel,
     title: episode.script.title,
     videoUrl: episode.videoUrl,
     thumbUrl: episode.scenes.find((s) => s.imageUrl)?.imageUrl,

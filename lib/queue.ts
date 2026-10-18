@@ -13,6 +13,8 @@ export interface QueueJob {
   id: string;
   letter: string;
   animal: string;
+  /** Channel this job belongs to: "avatails" (default) | "wildtails". */
+  channel?: string;
   status: JobStatus;
   stage?: string;
   agents?: AgentId[];
@@ -69,12 +71,16 @@ async function writeQueue(state: QueueState): Promise<void> {
   });
 }
 
-export async function enqueueJobs(items: Array<{ letter: string; animal: string }>): Promise<QueueJob[]> {
+export async function enqueueJobs(
+  items: Array<{ letter: string; animal: string }>,
+  channel?: string
+): Promise<QueueJob[]> {
   const state = await readQueue();
   const jobs: QueueJob[] = items.map((it) => ({
     id: crypto.randomBytes(5).toString("hex"),
     letter: it.letter.toUpperCase(),
     animal: it.animal,
+    channel: channel || "avatails",
     status: "queued",
     createdAt: new Date().toISOString(),
     logTail: [],

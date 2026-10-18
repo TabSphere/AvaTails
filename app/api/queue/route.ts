@@ -11,7 +11,7 @@ export async function GET() {
   return NextResponse.json({ ...state, storage: blobEnabled() ? "blob" : "none" });
 }
 
-/** POST — enqueue jobs. Body: { jobs: [{ letter, animal }] } */
+/** POST — enqueue jobs. Body: { jobs: [{ letter, animal }], channel?: "avatails" | "wildtails" } */
 export async function POST(req: NextRequest) {
   try {
     if (!blobEnabled()) {
@@ -20,18 +20,27 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const { jobs } = (await req.json()) as { jobs?: Array<{ letter: string; animal: string }> };
+    const { jobs, channel } = (await req.json()) as {
+      jobs?: Array<{ letter: string; animal: string }>;
+      channel?: string;
+    };
     if (!Array.isArray(jobs) || jobs.length === 0) {
       return NextResponse.json({ error: "jobs[] is required" }, { status: 400 });
     }
+    const ch = channel === "wildtails" ? "wildtails" : "avatails";
     const clean = jobs
-      .map((j) => ({ letter: String(j.letter || "").trim().slice(0, 1), animal: String(j.animal || "").trim().slice(0, 40) }))
+      .map((j) => ({
+        letter: String(j.letter || "").trim().slice(0, 1),
+        animal: String(j.animal || "").trim().slice(0, 40),
+      }))
+      // WildTails jobs don't need a letter — auto-derive it from the animal.
+      .map((j) => ({ ...j, letter: j.letter || (j.animal ? j.animal[0].toUpperCase() : "") }))
       .filter((j) => j.letter && j.animal)
       .slice(0, 50);
     if (!clean.length) {
       return NextResponse.json({ error: "no valid jobs" }, { status: 400 });
     }
-    const created = await enqueueJobs(clean);
+    const created = await enqueueJobs(clean, ch);
     return NextResponse.json({ enqueued: created.length });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

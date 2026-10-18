@@ -1,7 +1,7 @@
 // Shared AI helpers used by both the staged routes and the auto-pipeline.
 import OpenAI from "openai";
 import sharp from "sharp";
-import { SCRIPT_SYSTEM_PROMPT, IMAGE_STYLE_SUFFIX } from "./prompts";
+import { scriptPromptFor, imageSuffixFor } from "./prompts";
 import type { EpisodeScript } from "./types";
 
 function openaiClient(): OpenAI {
@@ -9,15 +9,24 @@ function openaiClient(): OpenAI {
   return new OpenAI();
 }
 
-export async function generateScript(letter: string, animal: string, model?: string): Promise<EpisodeScript> {
+export async function generateScript(
+  letter: string,
+  animal: string,
+  model?: string,
+  channel?: string
+): Promise<EpisodeScript> {
   const openai = openaiClient();
+  const userMsg =
+    channel === "wildtails"
+      ? `Animal: ${animal}.`
+      : `Letter: ${letter.toUpperCase()}. Animal: ${animal}.`;
   const completion = await openai.chat.completions.create({
     model: model || process.env.OPENAI_SCRIPT_MODEL || "gpt-4o-mini",
     response_format: { type: "json_object" },
     temperature: 0.8,
     messages: [
-      { role: "system", content: SCRIPT_SYSTEM_PROMPT },
-      { role: "user", content: `Letter: ${letter.toUpperCase()}. Animal: ${animal}.` },
+      { role: "system", content: scriptPromptFor(channel) },
+      { role: "user", content: userMsg },
     ],
   });
   const raw = completion.choices[0]?.message?.content || "{}";
@@ -51,10 +60,10 @@ export async function generateVoice(text: string, voiceId?: string): Promise<Buf
 }
 
 /** Generates an illustration, returned as a compressed JPEG buffer. */
-export async function generateImage(prompt: string, model?: string): Promise<Buffer> {
+export async function generateImage(prompt: string, model?: string, channel?: string): Promise<Buffer> {
   const openai = openaiClient();
   const usedModel = model || process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
-  const fullPrompt = `${prompt}\n\nStyle: ${IMAGE_STYLE_SUFFIX}`;
+  const fullPrompt = `${prompt}\n\nStyle: ${imageSuffixFor(channel)}`;
 
   let b64: string | undefined;
   try {

@@ -10,15 +10,16 @@ export const maxDuration = 300;
 
 /**
  * POST — one-click episode factory.
- * Body: { letter, animal, settings }
+ * Body: { letter, animal, channel?, settings }
  * Response: NDJSON stream of ProgressEvent, ending with type "episode" or "error".
  */
 export async function POST(req: NextRequest) {
-  let letter = "", animal = "", settings: FactorySettings = {};
+  let letter = "", animal = "", channel = "avatails", settings: FactorySettings = {};
   try {
     const body = await req.json();
     letter = String(body.letter || "").trim();
     animal = String(body.animal || "").trim();
+    channel = body.channel === "wildtails" ? "wildtails" : "avatails";
     settings = body.settings || {};
   } catch {
     /* handled below */
@@ -29,8 +30,10 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       const send = (e: ProgressEvent) => controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
       try {
-        if (!letter || !animal) throw new Error("letter and animal are required");
-        const episode = await runEpisode(letter, animal, settings, send);
+        if (!animal) throw new Error("animal is required");
+        // WildTails jobs don't need a letter — auto-derive from the animal.
+        if (!letter) letter = animal[0].toUpperCase();
+        const episode = await runEpisode(letter, animal, settings, send, channel);
         send({ type: "episode", message: "done", episode });
       } catch (e) {
         send({ type: "error", message: e instanceof Error ? e.message : String(e) });

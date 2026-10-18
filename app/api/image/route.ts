@@ -10,11 +10,15 @@ export const maxDuration = 120;
  */
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, model } = (await req.json()) as { prompt?: string; model?: string };
+    const { prompt, model, channel } = (await req.json()) as {
+      prompt?: string;
+      model?: string;
+      channel?: string;
+    };
     if (!prompt) {
       return NextResponse.json({ error: "prompt is required" }, { status: 400 });
     }
-    const jpeg = await generateImage(prompt, model);
+    const jpeg = await generateImage(prompt, model, channel);
     return NextResponse.json({ image: `data:image/jpeg;base64,${jpeg.toString("base64")}` });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

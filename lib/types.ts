@@ -36,6 +36,8 @@ export interface Episode {
   id: string;
   letter: string;
   animal: string;
+  /** Which channel this episode was produced for: "avatails" (default) | "wildtails". */
+  channel?: string;
   script: EpisodeScript;
   scenes: EpisodeSceneAsset[];
   videoUrl?: string;
