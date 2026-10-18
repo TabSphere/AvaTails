@@ -8,8 +8,19 @@ export const blobEnabled = (): boolean => Boolean(process.env.BLOB_READ_WRITE_TO
 
 const INDEX_PATH = "episodes/index.json";
 
-export async function saveBuffer(key: string, buf: Buffer, contentType: string): Promise<string> {
-  const blob = await put(key, buf, { access: "public", contentType, addRandomSuffix: false, allowOverwrite: true });
+export async function saveBuffer(
+  key: string,
+  buf: Buffer,
+  contentType: string,
+  cacheControlMaxAge?: number
+): Promise<string> {
+  const blob = await put(key, buf, {
+    access: "public",
+    contentType,
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    ...(cacheControlMaxAge !== undefined ? { cacheControlMaxAge } : {}),
+  });
   return blob.url;
 }
 
@@ -25,12 +36,14 @@ interface EpisodeIndexEntry {
   status: "done" | "failed";
 }
 
+// Public blob URLs are cached per CDN edge; an overwritten index can serve a
+// stale copy. The query buster changes the cache key to force a fresh read.
 async function readIndex(): Promise<EpisodeIndexEntry[]> {
   try {
     const { blobs } = await list({ prefix: INDEX_PATH, limit: 1 });
     const hit = blobs.find((b) => b.pathname === INDEX_PATH);
     if (!hit) return [];
-    const res = await fetch(hit.url, { cache: "no-store" });
+    const res = await fetch(`${hit.url}?t=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) return [];
     return (await res.json()) as EpisodeIndexEntry[];
   } catch {
@@ -48,7 +61,7 @@ export async function saveEpisode(episode: Episode, video: Buffer | null): Promi
     episode.bytes = video.byteLength;
   }
 
-  await saveBuffer(`${base}/meta.json`, Buffer.from(JSON.stringify(episode, null, 2)), "application/json");
+  await saveBuffer(`${base}/meta.json`, Buffer.from(JSON.stringify(episode, null, 2)), "application/json", 0);
 
   const index = await readIndex();
   const entry: EpisodeIndexEntry = {
@@ -63,7 +76,7 @@ export async function saveEpisode(episode: Episode, video: Buffer | null): Promi
     status: episode.status,
   };
   const next = [entry, ...index.filter((e) => e.id !== episode.id)].slice(0, 200);
-  await saveBuffer(INDEX_PATH, Buffer.from(JSON.stringify(next)), "application/json");
+  await saveBuffer(INDEX_PATH, Buffer.from(JSON.stringify(next)), "application/json", 0);
   return episode;
 }
 
