@@ -86,8 +86,8 @@ export default function Office3D({ workingIds, status, stage, progress, jobTitle
   return (
     <div className="office-wrap">
       <div ref={mountRef} className="office-canvas" />
-      {!ready && !error && <div className="office-loading">🖥️ Powering up the {brand === "wildtails" ? "WildTails" : "AvaTails"} hall…</div>}
-      {error && <div className="office-loading">⚠️ 3D floor failed to start: {error}</div>}
+      {!ready && !error && <div className="office-loading">Powering up the {brand === "wildtails" ? "WildTails" : "AvaTails"} hall…</div>}
+      {error && <div className="office-loading">3D floor failed to start: {error}</div>}
 
       {/* top-left: live status */}
       <div className="office-status">
@@ -123,7 +123,7 @@ export default function Office3D({ workingIds, status, stage, progress, jobTitle
           className="office-lights"
           onClick={() => setCyberpunk(sceneRef.current?.toggleCyberpunk() ?? false)}
         >
-          {cyberpunk ? "💡 LIGHTS ON" : "🌙 LIGHTS OFF"}
+          {cyberpunk ? "LIGHTS ON" : "LIGHTS OFF"}
         </button>
       </div>
     </div>
