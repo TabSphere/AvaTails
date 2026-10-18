@@ -59,10 +59,14 @@ function releaseVoiceSlot(): void {
   if (next) next();
 }
 
-export async function generateVoice(text: string, voiceId?: string): Promise<Buffer> {
+const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
+
+export async function generateVoice(text: string, voiceId?: string, speed?: number): Promise<Buffer> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) throw new Error("ELEVENLABS_API_KEY is not configured");
   const voice = voiceId || process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM"; // Rachel
+  // Slower than default: narration must feel calm and clear, never rushed.
+  const pace = clamp(speed ?? Number(process.env.ELEVENLABS_SPEED || 0.9), 0.7, 1.2);
 
   await acquireVoiceSlot();
   try {
@@ -73,7 +77,13 @@ export async function generateVoice(text: string, voiceId?: string): Promise<Buf
         body: JSON.stringify({
           text,
           model_id: process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
-          voice_settings: { stability: 0.55, similarity_boost: 0.75, style: 0.45, use_speaker_boost: true },
+          voice_settings: {
+            stability: 0.6,
+            similarity_boost: 0.75,
+            style: 0.4,
+            use_speaker_boost: true,
+            speed: pace,
+          },
         }),
       });
       if (res.ok) return Buffer.from(await res.arrayBuffer());
@@ -111,7 +121,9 @@ export async function generateImage(prompt: string, model?: string, channel?: st
         model: usedModel,
         prompt: fullPrompt,
         size: "1024x1536",
-        quality: "medium",
+        // High quality is the default — output has to look professional.
+        // Set OPENAI_IMAGE_QUALITY=medium to cut costs while experimenting.
+        quality: (process.env.OPENAI_IMAGE_QUALITY || "high") as "low" | "medium" | "high",
       });
       b64 = res.data?.[0]?.b64_json;
     }
@@ -124,5 +136,5 @@ export async function generateImage(prompt: string, model?: string, channel?: st
   }
   if (!b64) throw new Error("Image API returned no data");
 
-  return sharp(Buffer.from(b64, "base64")).jpeg({ quality: 82 }).toBuffer();
+  return sharp(Buffer.from(b64, "base64")).jpeg({ quality: 86 }).toBuffer();
 }
