@@ -38,25 +38,56 @@ export async function generateScript(
   return script;
 }
 
+// ElevenLabs pay-as-you-go allows max 3 concurrent TTS requests; the pipeline
+// builds all scenes in parallel, so voice calls are serialized (max 2 at once)
+// and 429 rate limits are retried with backoff.
+let voiceInFlight = 0;
+const voiceWaiters: Array<() => void> = [];
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function acquireVoiceSlot(): Promise<void> {
+  if (voiceInFlight < 2) {
+    voiceInFlight++;
+    return;
+  }
+  await new Promise<void>((resolve) => voiceWaiters.push(resolve));
+  voiceInFlight++;
+}
+function releaseVoiceSlot(): void {
+  voiceInFlight--;
+  const next = voiceWaiters.shift();
+  if (next) next();
+}
+
 export async function generateVoice(text: string, voiceId?: string): Promise<Buffer> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) throw new Error("ELEVENLABS_API_KEY is not configured");
   const voice = voiceId || process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM"; // Rachel
 
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
-    method: "POST",
-    headers: { "xi-api-key": apiKey, "Content-Type": "application/json", Accept: "audio/mpeg" },
-    body: JSON.stringify({
-      text,
-      model_id: process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
-      voice_settings: { stability: 0.55, similarity_boost: 0.75, style: 0.45, use_speaker_boost: true },
-    }),
-  });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`ElevenLabs error ${res.status}: ${detail.slice(0, 300)}`);
+  await acquireVoiceSlot();
+  try {
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
+        method: "POST",
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json", Accept: "audio/mpeg" },
+        body: JSON.stringify({
+          text,
+          model_id: process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
+          voice_settings: { stability: 0.55, similarity_boost: 0.75, style: 0.45, use_speaker_boost: true },
+        }),
+      });
+      if (res.ok) return Buffer.from(await res.arrayBuffer());
+      const detail = await res.text();
+      if (res.status === 429 && attempt < 4) {
+        await sleep(5000 * attempt); // 5s, 10s, 15s backoff
+        continue;
+      }
+      throw new Error(`ElevenLabs error ${res.status}: ${detail.slice(0, 300)}`);
+    }
+    throw new Error("ElevenLabs error 429: rate limit persisted after retries");
+  } finally {
+    releaseVoiceSlot();
   }
-  return Buffer.from(await res.arrayBuffer());
 }
 
 /** Generates an illustration, returned as a compressed JPEG buffer. */
