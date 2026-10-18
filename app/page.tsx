@@ -1,7 +1,4 @@
-  return (
-    <>
-      <ConnectionsCard />
-      <div className="card" style={{ maxWidth: 560 }}>"use client";
+"use client";
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
@@ -831,7 +828,9 @@ function SettingsTab({ settings, onSave }: { settings: Settings; onSave: (s: Set
   }
 
   return (
-    <div className="card" style={{ maxWidth: 560 }}>
+    <>
+      <ConnectionsCard />
+      <div className="card" style={{ maxWidth: 560 }}>
       <h2>Factory settings</h2>
       <label>Script model</label>
       <input type="text" value={draft.scriptModel} onChange={(e) => setDraft({ ...draft, scriptModel: e.target.value })} />
@@ -937,4 +936,4 @@ function ConnectionsCard() {
       </p>
     </div>
   );
-    }
+}
