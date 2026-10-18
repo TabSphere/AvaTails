@@ -1,4 +1,7 @@
-"use client";
+  return (
+    <>
+      <ConnectionsCard />
+      <div className="card" style={{ maxWidth: 560 }}>"use client";
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
@@ -877,5 +880,61 @@ function SettingsTab({ settings, onSave }: { settings: Settings; onSave: (s: Set
         to manual runs and the queue “run now” button.
       </p>
     </div>
+    </>
   );
 }
+
+/* ─────────────────────── Connections (YouTube + Telegram) ─────────────────────── */
+
+function ConnectionsCard() {
+  const [yt, setYt] = useState<{
+    configured: boolean;
+    connections: Record<string, { channelTitle?: string; connectedAt: string; nextSlotISO?: string }>;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/youtube/status")
+      .then((r) => r.json())
+      .then(setYt)
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="card" style={{ maxWidth: 560 }}>
+      <h2>Channel connections</h2>
+      <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0 }}>
+        Connect each YouTube channel once — after that, approving an episode schedules it on the right
+        channel automatically. One video per day per channel, 16:00 UTC.
+      </p>
+      {(["avatails", "wildtails"] as BrandId[]).map((id) => {
+        const conn = yt?.connections?.[id];
+        return (
+          <div key={id} className="scene-row" style={{ alignItems: "center" }}>
+            <div className="thumb placeholder">{id === "wildtails" ? "W" : "A"}</div>
+            <div className="line">
+              <strong>{channelName(id)}</strong>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                {conn
+                  ? `Connected${conn.channelTitle ? ` as ${conn.channelTitle}` : ""} · next slot ${
+                      conn.nextSlotISO ? new Date(conn.nextSlotISO).toUTCString() : "tomorrow 16:00 UTC"
+                    }`
+                  : yt?.configured
+                    ? "Not connected"
+                    : "Set YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET in Vercel first"}
+              </div>
+            </div>
+            <div className="status">
+              <a className="mini" href={`/api/youtube/connect?channel=${id}`} style={{ textDecoration: "none" }}>
+                {conn ? "Reconnect" : "Connect"}
+              </a>
+            </div>
+          </div>
+        );
+      })}
+      <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0 }}>
+        Telegram review: set TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID and TELEGRAM_WEBHOOK_SECRET — every
+        finished episode then arrives in your chat with Approve and Reject buttons.
+      </p>
+    </div>
+  );
+    }
