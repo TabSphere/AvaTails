@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 const Office3D = dynamic(() => import("@/components/office/Office3D"), {
   ssr: false,
-  loading: () => <div className="office-loading">🖥️ Powering up the AI data centre…</div>,
+  loading: () => <div className="office-loading">Powering up the AI data centre…</div>,
 });
 
 /* ── shared types ── */
@@ -85,13 +85,14 @@ const DEFAULT_SETTINGS: Settings = {
    To add a future channel: add one entry here AND one in OFFICE_THEMES
    (components/office/officeScene.js) — the floor, sign and theming follow automatically. ── */
 const BRANDS = [
-  { id: "avatails", name: "AvaTails", emoji: "🐊", tagline: "Kids animal ABC episodes" },
-  { id: "wildtails", name: "WildTails", emoji: "🦁", tagline: "Wild nature shorts" },
+  { id: "avatails", name: "AvaTails", initial: "A", tagline: "Kids animal ABC episodes" },
+  { id: "wildtails", name: "WildTails", initial: "W", tagline: "Wild nature shorts" },
 ] as const;
 type BrandId = (typeof BRANDS)[number]["id"];
 
 /* ── Per-channel formats: each brand runs its own show ── */
-const channelEmoji = (c?: string) => (c === "wildtails" ? "🦁" : "🐊");
+const channelInitial = (c?: string) => (c === "wildtails" ? "W" : "A");
+const channelName = (c?: string) => (c === "wildtails" ? "WildTails" : "AvaTails");
 const jobTitle = (j: { letter: string; animal: string; channel?: string }) =>
   j.channel === "wildtails" ? `${j.animal} — Wild Facts` : `${j.letter} is for ${j.animal}`;
 
@@ -112,7 +113,7 @@ async function decideJob(jobId: string, action: "approve" | "reject", note?: str
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "approval failed");
-  return action === "approve" ? "✅ Approved — episode shipped to History." : "❌ Rejected — job marked failed.";
+  return action === "approve" ? "Approved — episode shipped to History." : "Rejected — job marked failed.";
 }
 
 const loadSettings = (): Settings => {
@@ -157,14 +158,14 @@ export default function Home() {
   return (
     <div className="container">
       <header className="brand">
-        <div className="logo">🐊</div>
+        <div className="logo">TS</div>
         <h1>
           Tab<span>Sphere</span>
         </h1>
         <div className="div-badge">YouTube Automation Division</div>
       </header>
       <p className="subtitle">
-        Powering <strong>@AvaTails</strong> 🐊 (toddler Animal ABCs) and <strong>@WildTails</strong> 🦁 (family
+        Powering <strong>@AvaTails</strong> (toddler Animal ABCs) and <strong>@WildTails</strong> (family
         wildlife facts) — two channels, two formats, one AI agent team working around the clock.
       </p>
 
@@ -172,14 +173,14 @@ export default function Home() {
         {(["floor", "queue", "create", "history", "settings"] as Tab[]).map((t) => (
           <button key={t} className={`tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
             {t === "floor"
-              ? "🖥️ Data Centre"
+              ? "Data Centre"
               : t === "queue"
-                ? "📋 Job Queue"
+                ? "Job Queue"
                 : t === "create"
-                  ? "🎬 Create"
+                  ? "Create"
                   : t === "history"
-                    ? "🗂️ History"
-                    : "⚙️ Settings"}
+                    ? "History"
+                    : "Settings"}
           </button>
         ))}
       </nav>
@@ -192,7 +193,6 @@ export default function Home() {
     </div>
   );
 }
-
 /* ───────────────────────── Factory Floor ───────────────────────── */
 
 function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Settings }) {
@@ -207,13 +207,13 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
   const runningJob = queue?.jobs.find((j) => j.status === "running");
   const waitingJob = queue?.jobs.find((j) => j.status === "waiting");
   const queuedCount = queue?.jobs.filter((j) => j.status === "queued").length || 0;
-  // Pipeline running → its agents glow. Waiting on approval → the Publisher waves.
+  // Pipeline running → its agents glow. Waiting on approval → the Publisher stands by.
   const workingIds = runningJob?.agents || (waitingJob ? ["publisher"] : []);
   const boardJob = runningJob || waitingJob;
   const officeStatus = runningJob
     ? `${jobTitle(runningJob)} — ${runningJob.stage || "starting"}`
     : waitingJob
-      ? `${jobTitle(waitingJob)} — Publisher needs your OK ✋`
+      ? `${jobTitle(waitingJob)} — waiting for your approval`
       : queuedCount > 0
         ? `${queuedCount} job${queuedCount > 1 ? "s" : ""} waiting — agents standing by`
         : "All agents idle — queue is empty";
@@ -227,7 +227,7 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
       // queue state refresh happens via the poller; this just speeds it up
       void d;
     } catch (e) {
-      setDecisionMsg(`❌ ${e instanceof Error ? e.message : e}`);
+      setDecisionMsg(`Error: ${e instanceof Error ? e.message : e}`);
     } finally {
       setDeciding(false);
     }
@@ -235,7 +235,7 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
 
   async function runNext() {
     setTriggering(true);
-    setTriggerMsg("👔 Chief of Staff is dispatching the next job…");
+    setTriggerMsg("Chief of Staff is dispatching the next job…");
     try {
       const res = await fetch("/api/queue/run", {
         method: "POST",
@@ -243,11 +243,11 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
         body: JSON.stringify({ settings }),
       });
       const data = await res.json();
-      if (data.ran && !data.error) setTriggerMsg(`✋ Episode produced — the Publisher is holding it for your OK.`);
-      else if (data.error) setTriggerMsg(`❌ ${data.error}`);
-      else setTriggerMsg("💤 Queue is empty — add jobs in the Job Queue tab.");
+      if (data.ran && !data.error) setTriggerMsg("Episode produced — the Publisher is holding it for your approval.");
+      else if (data.error) setTriggerMsg(`Error: ${data.error}`);
+      else setTriggerMsg("Queue is empty — add jobs in the Job Queue tab.");
     } catch (e) {
-      setTriggerMsg(`❌ ${e instanceof Error ? e.message : e}`);
+      setTriggerMsg(`Error: ${e instanceof Error ? e.message : e}`);
     } finally {
       setTriggering(false);
     }
@@ -276,7 +276,7 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
 
       <div className="card">
         <h2>
-          🖥️ Inside the {activeBrand.name} AI data centre — live
+          Inside the {activeBrand.name} AI data centre — live
           <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 400, marginLeft: 8 }}>
             {activeBrand.tagline}
           </span>
@@ -288,7 +288,7 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
               className={`tab ${brand === b.id ? "active" : ""}`}
               onClick={() => setBrand(b.id)}
             >
-              {b.emoji} {b.name} floor
+              {b.name} floor
             </button>
           ))}
         </div>
@@ -308,23 +308,22 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
           (MIT).
         </p>
       </div>
-
       {waitingJob && !runningJob && (
         <div className="card approval-card">
-          <h2>✋ Waiting for your OK</h2>
+          <h2>Waiting for your approval</h2>
           <div className="scene-row">
-            <div className="thumb placeholder">{channelEmoji(waitingJob.channel)}</div>
+            <div className="thumb placeholder">{channelInitial(waitingJob.channel)}</div>
             <div className="line">
               <strong>{jobTitle(waitingJob)}</strong>
               <div style={{ color: "var(--muted)", fontSize: 12 }}>
                 Episode produced{waitingJob.costUSD != null && ` · $${waitingJob.costUSD.toFixed(3)}`} — the Publisher
-                won't ship it until you approve.
+                will not ship it until you approve.
               </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
             <button style={{ marginTop: 0 }} onClick={() => decide(waitingJob.id, "approve")} disabled={deciding}>
-              ✅ Approve — ship it
+              Approve — ship it
             </button>
             <button
               className="secondary"
@@ -332,7 +331,7 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
               onClick={() => decide(waitingJob.id, "reject")}
               disabled={deciding}
             >
-              ❌ Reject
+              Reject
             </button>
           </div>
           <input
@@ -347,9 +346,9 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
 
       {runningJob && (
         <div className="card">
-          <h2>🔴 Live now</h2>
+          <h2>Live now</h2>
           <div className="scene-row">
-            <div className="thumb placeholder">{channelEmoji(runningJob.channel)}</div>
+            <div className="thumb placeholder">{channelInitial(runningJob.channel)}</div>
             <div className="line">
               <strong>{jobTitle(runningJob)}</strong>
               <div style={{ color: "var(--muted)", fontSize: 12 }}>stage: {runningJob.stage || "starting"}</div>
@@ -370,11 +369,11 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
       <div className="card">
         <h2>Foreman controls</h2>
         <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0 }}>
-          The cron worker (every 10 min on Vercel Pro) picks up queued jobs automatically — that’s the “while you
-          sleep” shift. Use the button to dispatch a job right now.
+          The cron worker (every 10 min on Vercel Pro) picks up queued jobs automatically — that is the
+          hands-off shift. Use the button to dispatch a job right now.
         </p>
         <button onClick={runNext} disabled={triggering || queuedCount === 0}>
-          {triggering ? "🏭 Working…" : `▶ Run next job now (${queuedCount} queued)`}
+          {triggering ? "Working…" : `Run next job now (${queuedCount} queued)`}
         </button>
         {triggerMsg && <p style={{ fontSize: 13, marginBottom: 0 }}>{triggerMsg}</p>}
       </div>
@@ -382,8 +381,8 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
       {queue?.storage === "none" && (
         <div className="card">
           <div className="meta-box">
-            💡 The Factory Floor needs storage: attach a <strong>Vercel Blob</strong> store (Storage tab in Vercel) and
-            redeploy. That’s where the queue and history live so agents work without your browser open.
+            The Factory Floor needs storage: attach a <strong>Vercel Blob</strong> store (Storage tab in Vercel) and
+            redeploy. That is where the queue and history live so agents work without your browser open.
           </div>
         </div>
       )}
@@ -406,7 +405,7 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
     try {
       setMsg(await decideJob(jobId, action));
     } catch (e) {
-      setMsg(`❌ ${e instanceof Error ? e.message : e}`);
+      setMsg(`Error: ${e instanceof Error ? e.message : e}`);
     } finally {
       setDecidingId("");
     }
@@ -434,10 +433,10 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setMsg(
-        `✅ ${data.enqueued} ${channelEmoji(qBrand)} jobs queued for ${qBrand === "wildtails" ? "WildTails" : "AvaTails"}. Agents will pick them up.`
+        `${data.enqueued} jobs queued for ${channelName(qBrand)}. Agents will pick them up.`
       );
     } catch (e) {
-      setMsg(`❌ ${e instanceof Error ? e.message : e}`);
+      setMsg(`Error: ${e instanceof Error ? e.message : e}`);
     }
   }
 
@@ -446,9 +445,7 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
   return (
     <div className="grid">
       <div className="card">
-        <h2>
-          <span className="num">📋</span>Add jobs
-        </h2>
+        <h2>Add jobs</h2>
         <div className="tabs" style={{ marginBottom: 12 }}>
           {BRANDS.map((b) => (
             <button
@@ -456,7 +453,7 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
               className={`tab ${qBrand === b.id ? "active" : ""}`}
               onClick={() => setQBrand(b.id)}
             >
-              {b.emoji} {b.name}
+              {b.name}
             </button>
           ))}
         </div>
@@ -470,11 +467,11 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
           value={input}
           onChange={(e) => setInputs({ ...inputs, [qBrand]: e.target.value })}
         />
-        <button onClick={enqueue}>➕ Enqueue {qBrand === "wildtails" ? "WildTails" : "AvaTails"} jobs</button>
+        <button onClick={enqueue}>Enqueue {channelName(qBrand)} jobs</button>
         {msg && <p style={{ fontSize: 13 }}>{msg}</p>}
         <p style={{ fontSize: 12, color: "var(--muted)" }}>
-          Each channel runs its own format: 🐊 toddler ABC episodes vs 🦁 family wildlife facts. Jobs live in storage,
-          not your browser — the cron worker keeps producing even when this tab is closed.
+          Each channel runs its own format: AvaTails toddler ABC episodes vs WildTails family wildlife facts.
+          Jobs live in storage, not your browser — the cron worker keeps producing even when this tab is closed.
         </p>
       </div>
 
@@ -483,7 +480,7 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
         {jobs.length === 0 && <div style={{ color: "var(--muted)", fontSize: 14 }}>No jobs yet.</div>}
         {jobs.map((j) => (
           <div key={j.id} className="scene-row">
-            <div className="thumb placeholder">{channelEmoji(j.channel)}</div>
+            <div className="thumb placeholder">{channelInitial(j.channel)}</div>
             <div className="line">
               <strong>{jobTitle(j)}</strong>
               <div style={{ fontSize: 12, color: "var(--muted)" }}>
@@ -498,24 +495,24 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
                     disabled={decidingId === j.id}
                     onClick={() => decide(j.id, "approve")}
                   >
-                    ✅ Approve
+                    Approve
                   </button>
                   <button
                     className="mini"
                     disabled={decidingId === j.id}
                     onClick={() => decide(j.id, "reject")}
                   >
-                    ❌ Reject
+                    Reject
                   </button>
                 </div>
               )}
             </div>
             <div className="status">
-              {j.status === "queued" && "⏸️"}
-              {j.status === "running" && `⏳ ${j.progress ?? 0}%`}
-              {j.status === "waiting" && "✋"}
-              {j.status === "done" && "✅"}
-              {j.status === "failed" && "❌"}
+              {j.status === "queued" && "Queued"}
+              {j.status === "running" && `Running ${j.progress ?? 0}%`}
+              {j.status === "waiting" && "Review"}
+              {j.status === "done" && "Done"}
+              {j.status === "failed" && "Failed"}
             </div>
           </div>
         ))}
@@ -523,7 +520,6 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
     </div>
   );
 }
-
 /* ───────────────────────── Create (manual single) ───────────────────────── */
 
 function CreateTab({ settings }: { settings: Settings }) {
@@ -572,7 +568,7 @@ function CreateTab({ settings }: { settings: Settings }) {
             if (typeof ev.progress === "number") setProgress(ev.progress);
           } else if (ev.type === "episode") {
             setEpisode(ev.episode);
-            addLog("Episode ready to download!", "ok");
+            addLog("Episode ready to download.", "ok");
           } else if (ev.type === "error") {
             addLog(ev.message, "err");
           }
@@ -601,9 +597,7 @@ function CreateTab({ settings }: { settings: Settings }) {
     <div className="grid">
       <div>
         <div className="card">
-          <h2>
-            <span className="num">▶</span>Single episode (instant)
-          </h2>
+          <h2>Single episode (instant)</h2>
           <div className="tabs" style={{ marginBottom: 12 }}>
             {BRANDS.map((b) => (
               <button
@@ -614,7 +608,7 @@ function CreateTab({ settings }: { settings: Settings }) {
                   setAnimal(b.id === "wildtails" ? "Lion" : "Alligator");
                 }}
               >
-                {b.emoji} {b.name}
+                {b.name}
               </button>
             ))}
           </div>
@@ -628,10 +622,10 @@ function CreateTab({ settings }: { settings: Settings }) {
           <input type="text" value={animal} onChange={(e) => setAnimal(e.target.value)} />
           <button onClick={run} disabled={busy || !animal || (cBrand === "avatails" && !letter)}>
             {busy
-              ? "🏭 Factory running…"
+              ? "Factory running…"
               : cBrand === "wildtails"
-                ? "🚀 Generate Wild Facts episode"
-                : "🚀 Generate full episode"}
+                ? "Generate Wild Facts episode"
+                : "Generate full episode"}
           </button>
           {(busy || progress > 0) && (
             <div className="progress">
@@ -643,25 +637,24 @@ function CreateTab({ settings }: { settings: Settings }) {
         <div className="card">
           <h2>Factory log</h2>
           <div className="log">
-            {log.length === 0 && <div>Waiting for orders, boss. 🐾</div>}
+            {log.length === 0 && <div>Waiting for orders.</div>}
             {log.map((l, i) => (
               <div key={i} className={l.kind}>
-                {l.kind === "ok" ? "✅ " : l.kind === "err" ? "❌ " : "• "}
+                {l.kind === "ok" ? "[done] " : l.kind === "err" ? "[error] " : "• "}
                 {l.text}
               </div>
             ))}
           </div>
         </div>
       </div>
-
       <div>
         {episode && (
           <>
             <div className="card">
-              <h2>Your episode 🎉</h2>
+              <h2>Your episode</h2>
               {episode.videoUrl && <video controls src={episode.videoUrl} />}
               <button onClick={download}>
-                ⬇️ Download MP4{episode.bytes ? ` (${(episode.bytes / 1048576).toFixed(1)} MB)` : ""}
+                Download MP4{episode.bytes ? ` (${(episode.bytes / 1048576).toFixed(1)} MB)` : ""}
               </button>
               {episode.costUSD != null && (
                 <p style={{ fontSize: 12, color: "var(--muted)" }}>Est. cost: ${episode.costUSD.toFixed(3)}</p>
@@ -711,12 +704,12 @@ function CreateTab({ settings }: { settings: Settings }) {
               <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0 }}>
                 {episode.channel === "wildtails" ? (
                   <>
-                    🦁 WildTails targets a family audience — upload to <strong>@WildTails24</strong> (not marked
+                    WildTails targets a family audience — upload to <strong>@WildTails24</strong> (not marked
                     “Made for Kids”, so comments stay on).
                   </>
                 ) : (
                   <>
-                    ⚠️ Set the video as <strong>“Made for Kids”</strong> when uploading to @AvaTails (COPPA).
+                    Note: set the video as <strong>“Made for Kids”</strong> when uploading to @AvaTails (COPPA).
                   </>
                 )}
               </p>
@@ -725,7 +718,7 @@ function CreateTab({ settings }: { settings: Settings }) {
         )}
         {!episode && !busy && (
           <div className="card" style={{ color: "var(--muted)", fontSize: 14 }}>
-            <h2>Tip 💡</h2>
+            <h2>Tip</h2>
             <p>
               For hands-off production use the <strong>Job Queue</strong> tab instead — queue the whole A–Z series and
               let the agents work through it. This tab is for one-off test runs.
@@ -760,7 +753,7 @@ function HistoryTab() {
       <h2>Episode history</h2>
       {loaded && storage === "none" && (
         <div className="meta-box">
-          💡 History needs storage: add a <strong>Vercel Blob</strong> store to your project (it sets
+          History needs storage: add a <strong>Vercel Blob</strong> store to your project (it sets
           BLOB_READ_WRITE_TOKEN automatically) and redeploy. Until then, episodes are delivered as instant downloads
           only.
         </div>
@@ -772,26 +765,29 @@ function HistoryTab() {
               <img src={e.thumbUrl} alt={e.title} />
             ) : (
               <div className="thumb placeholder" style={{ width: "100%", height: 140 }}>
-                {e.channel === "wildtails" ? "🦁" : e.letter}
+                {e.channel === "wildtails" ? "W" : e.letter}
               </div>
             )}
             <div className="history-meta">
               <div className="history-title">
-                {channelEmoji(e.channel)} {e.title || jobTitle(e)}
+                {e.title || jobTitle(e)}
+                <span style={{ color: "var(--muted)", fontWeight: 400, fontSize: 11, marginLeft: 6 }}>
+                  {channelName(e.channel)}
+                </span>
               </div>
               <div className="history-date">
-                {new Date(e.createdAt).toLocaleDateString()} · {e.status === "done" ? "✅ done" : "❌ failed"}
+                {new Date(e.createdAt).toLocaleDateString()} · {e.status === "done" ? "done" : "failed"}
               </div>
               {e.videoUrl && (
                 <a href={e.videoUrl} target="_blank" rel="noreferrer" download>
-                  ⬇️ Download
+                  Download
                 </a>
               )}
             </div>
           </div>
         ))}
         {loaded && storage !== "none" && episodes.length === 0 && (
-          <div style={{ color: "var(--muted)" }}>No episodes yet — go make the first one! 🐊</div>
+          <div style={{ color: "var(--muted)" }}>No episodes yet — go make the first one.</div>
         )}
       </div>
     </div>
@@ -824,10 +820,10 @@ function SettingsTab({ settings, onSave }: { settings: Settings; onSave: (s: Set
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setDraft({ ...draft, musicUrl: data.musicUrl });
-      setMusicMsg("✅ Music uploaded and will play under every episode.");
+      setMusicMsg("Music uploaded and will play under every episode.");
     } catch (e) {
       setDraft({ ...draft, musicUrl: dataUrl });
-      setMusicMsg(`⚠️ Stored locally instead (${e instanceof Error ? e.message : "no blob storage"}).`);
+      setMusicMsg(`Stored locally instead (${e instanceof Error ? e.message : "no blob storage"}).`);
     }
   }
 
@@ -854,7 +850,7 @@ function SettingsTab({ settings, onSave }: { settings: Settings; onSave: (s: Set
       {musicMsg && <p style={{ fontSize: 12, color: "var(--muted)" }}>{musicMsg}</p>}
       {draft.musicUrl && (
         <p style={{ fontSize: 12, color: "var(--ok)" }}>
-          🎵 Music set{" "}
+          Music set{" "}
           <a
             href="#"
             onClick={(e) => {
@@ -874,7 +870,7 @@ function SettingsTab({ settings, onSave }: { settings: Settings; onSave: (s: Set
           setTimeout(() => setSaved(false), 2000);
         }}
       >
-        {saved ? "✅ Saved!" : "💾 Save settings"}
+        {saved ? "Saved" : "Save settings"}
       </button>
       <p style={{ fontSize: 12, color: "var(--muted)" }}>
         Settings are stored in this browser only. The cron worker runs with defaults — voice/model changes here apply
