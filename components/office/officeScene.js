@@ -1,9 +1,3 @@
-const CHAT_PHRASES = [
-  "GPU cluster at 98%", "cooling nominal", "latency 12ms", "episode shipped",
-  "render complete", "queue is empty", "new script today?", "voiceover sounds great",
-  "26 letters to go", "kids will love this one", "crossfades are smooth",
-  "who queued 10 jobs?", "failover test passed", "token budget check",
-];
 // ─────────────────────────────────────────────────────────────────────────────
 // TabSphere — YouTube Automation Division · 3D Operations Floor (v8, multi-brand)
 // Adapted from Gaurav2693/ai-office (MIT License) — https://github.com/Gaurav2693/ai-office
@@ -52,10 +46,10 @@ export const OFFICE_THEMES = {
 };
 
 const CHAT_PHRASES = [
-  "GPU cluster at 98% 🔥", "cooling nominal ❄️", "latency 12ms ⚡", "episode shipped 📦",
-  "render done ✅", "queue's empty 😴", "new script today?", "voiceover sounds great 🎙️",
-  "26 letters to go!", "kids will love this one 🐊", "crossfades are smooth 🎬",
-  "who queued 10 jobs? 😅", "failover test passed 💚", "token budget check 📊",
+  "GPU cluster at 98%", "cooling nominal", "latency 12ms", "episode shipped",
+  "render complete", "queue is empty", "new script today?", "voiceover sounds great",
+  "26 letters to go", "kids will love this one", "crossfades are smooth",
+  "who queued 10 jobs?", "failover test passed", "token budget check",
 ];
 
 class RNG {
