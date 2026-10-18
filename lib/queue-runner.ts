@@ -22,20 +22,30 @@ export async function runNextJob(settings: FactorySettings): Promise<RunResult> 
 
   await updateJob(job.id, { status: "running", progress: 0, logTail: ["Chief of Staff picked up the job 👔"] });
 
+  // Progress writes are serialized into a chain. Fire-and-forget writes race
+  // each other (read-modify-write on one JSON doc), and a slow stale write
+  // landing last can resurrect an old status — e.g. a finished job flipping
+  // back to "queued" and getting run (and billed) twice.
+  let writeChain: Promise<void> = Promise.resolve();
+  const flushWrites = () => writeChain;
+
   try {
     const episode = await runEpisode(job.letter, job.animal, settings, (ev) => {
       // Persist stage changes + tail of the log; blob writes stay infrequent.
       if (ev.type === "progress") {
         const tail = [...(job.logTail || []), ev.message];
         job.logTail = tail;
-        void updateJob(job.id, {
+        const patch = {
           stage: ev.stage,
           agents: ev.agents as never,
           progress: ev.progress,
           logTail: tail,
-        }).catch(() => {});
+        };
+        writeChain = writeChain.then(() => updateJob(job.id, patch).catch(() => {}));
       }
     }, job.channel);
+    // Let every in-flight progress write land before the final state.
+    await flushWrites();
     // Approval gate: the episode is produced, but nothing counts as "done"
     // until the boss approves it (POST /api/queue/approve). The Publisher
     // stands by, waving, until then.
@@ -50,6 +60,7 @@ export async function runNextJob(settings: FactorySettings): Promise<RunResult> 
     });
     return { ran: true, jobId: job.id, episodeId: episode.id };
   } catch (e) {
+    await flushWrites();
     const msg = e instanceof Error ? e.message : String(e);
     await updateJob(job.id, {
       status: "failed",
