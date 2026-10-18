@@ -12,7 +12,11 @@ import type { RenderInput, RenderOptions } from "./types";
 const FFMPEG = process.env.FFMPEG_PATH || (ffmpegPath as unknown as string) || "ffmpeg";
 const FFPROBE = process.env.FFPROBE_PATH || (ffprobe as unknown as { path: string }).path;
 
-const FADE = 0.5; // seconds, crossfade between scenes
+const FADE = 0.4; // seconds, crossfade between scenes
+// Silence appended after each scene's voiceover. Without it the next scene's
+// narration starts instantly (feels rushed) and the audio crossfade overlaps
+// actual speech. The fade window now lands inside this quiet tail instead.
+const PAD_TAIL = 0.6;
 
 function run(cmd: string, args: string[]): void {
   execFileSync(cmd, args, { stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
@@ -80,13 +84,13 @@ export async function composeSceneImage(
   await sharp(image)
     .resize(width, height, { fit: "cover", position: "attention" })
     .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
-    .jpeg({ quality: 84 })
+    .jpeg({ quality: 86 })
     .toFile(outFile);
 }
-
 /**
  * Render one scene: still image + gentle zoom (Ken Burns) + voiceover.
- * Audio is loudness-normalized so every scene sits at the same volume.
+ * Audio is loudness-normalized, then padded with silence (apad) up to the
+ * scene duration so narration never runs into the next scene.
  */
 function renderScene(
   imageFile: string,
@@ -111,7 +115,7 @@ function renderScene(
     "-filter_complex", filter,
     "-map", "[v]",
     "-map", "1:a",
-    "-af", "loudnorm=I=-15:TP=-1.5:LRA=11",
+    "-af", "loudnorm=I=-15:TP=-1.5:LRA=11,apad",
     "-t", duration.toFixed(3),
     "-r", "30",
     "-c:v", "libx264",
@@ -154,7 +158,6 @@ function joinWithTransitions(sceneFiles: string[], durations: number[], outFile:
     outFile,
   ]);
 }
-
 /** Join scenes with plain cuts (concat demuxer, stream copy). */
 function joinWithCuts(sceneFiles: string[], outFile: string, workDir: string): void {
   const listFile = path.join(workDir, "concat.txt");
@@ -193,8 +196,8 @@ const ATTEMPTS: Array<{ width: number; height: number; crf: number }> = [
 ];
 
 /**
- * Full episode render: caption burn-in -> per-scene video (Ken Burns + loudnorm)
- * -> transitions or cuts -> optional music bed -> finished MP4 buffer.
+ * Full episode render: caption burn-in -> per-scene video (Ken Burns + loudnorm
+ * + silent tail) -> transitions or cuts -> optional music bed -> finished MP4.
  * Retries at lower quality if the result exceeds `sizeGuard`.
  */
 export async function renderEpisode(
@@ -208,7 +211,8 @@ export async function renderEpisode(
     const prepared = scenes.map((s, i) => {
       const audioFile = path.join(workDir, `voice-${i}.mp3`);
       fs.writeFileSync(audioFile, s.audio);
-      return { audioFile, dur: probeDuration(audioFile) };
+      // Scene length = voiceover + a quiet tail so pacing never feels rushed.
+      return { audioFile, dur: probeDuration(audioFile) + PAD_TAIL };
     });
 
     const musicFile = opts.music ? path.join(workDir, "music.mp3") : null;
