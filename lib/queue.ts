@@ -45,13 +45,18 @@ const emptyState = (): QueueState => ({
   updatedAt: new Date().toISOString(),
 });
 
+// Public blob URLs are cached per CDN edge, and an overwritten state.json can
+// keep serving a stale copy (e.g. an empty queue) long after the write. The
+// query buster changes the cache key and forces a fresh origin fetch.
+const freshFetch = (url: string) => fetch(`${url}?t=${Date.now()}`, { cache: "no-store" });
+
 export async function readQueue(): Promise<QueueState> {
   if (!blobEnabled()) return emptyState();
   try {
     const { blobs } = await list({ prefix: QUEUE_PATH, limit: 1 });
     const hit = blobs.find((b) => b.pathname === QUEUE_PATH);
     if (!hit) return emptyState();
-    const res = await fetch(hit.url, { cache: "no-store" });
+    const res = await freshFetch(hit.url);
     if (!res.ok) return emptyState();
     return (await res.json()) as QueueState;
   } catch {
@@ -68,6 +73,8 @@ async function writeQueue(state: QueueState): Promise<void> {
     contentType: "application/json",
     addRandomSuffix: false,
     allowOverwrite: true,
+    // No edge caching: this document is overwritten on every queue mutation.
+    cacheControlMaxAge: 0,
   });
 }
 
