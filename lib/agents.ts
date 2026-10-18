@@ -5,16 +5,17 @@ export interface AgentDef {
   id: AgentId;
   name: string;
   role: string;
-  emoji: string;
+  /** Short badge letter(s) for compact UI chips — no emoji, professional chrome. */
+  badge: string;
 }
 
 export const AGENTS: AgentDef[] = [
-  { id: "chief", name: "Chief of Staff", role: "Runs the queue, assigns jobs", emoji: "👔" },
-  { id: "writer", name: "Scriptwriter", role: "Writes 6-scene toddler episodes", emoji: "✍️" },
-  { id: "voice", name: "Voice Artist", role: "ElevenLabs narration per scene", emoji: "🎙️" },
-  { id: "artist", name: "Illustrator", role: "Cartoon scene art (OpenAI images)", emoji: "🎨" },
-  { id: "editor", name: "Video Editor", role: "Captions, transitions, music, MP4", emoji: "🎬" },
-  { id: "publisher", name: "Publisher", role: "Saves episodes + metadata", emoji: "📦" },
+  { id: "chief", name: "Chief of Staff", role: "Runs the queue, assigns jobs", badge: "CS" },
+  { id: "writer", name: "Scriptwriter", role: "Writes 6-scene toddler episodes", badge: "WR" },
+  { id: "voice", name: "Voice Artist", role: "ElevenLabs narration per scene", badge: "VO" },
+  { id: "artist", name: "Illustrator", role: "Scene art (OpenAI images)", badge: "IL" },
+  { id: "editor", name: "Video Editor", role: "Captions, transitions, music, MP4", badge: "ED" },
+  { id: "publisher", name: "Publisher", role: "Saves episodes + metadata", badge: "PB" },
 ];
 
 export const agentOf = (id: AgentId): AgentDef => AGENTS.find((a) => a.id === id) as AgentDef;
