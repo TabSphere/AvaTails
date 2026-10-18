@@ -20,6 +20,7 @@ interface Episode {
   id: string;
   letter: string;
   animal: string;
+  channel?: string;
   script: { title: string; description: string; tags: string[] };
   scenes: Scene[];
   videoUrl?: string;
@@ -39,6 +40,7 @@ interface QueueJob {
   id: string;
   letter: string;
   animal: string;
+  channel?: string;
   status: "queued" | "running" | "waiting" | "done" | "failed";
   stage?: string;
   agents?: string[];
@@ -61,6 +63,7 @@ interface HistoryEntry {
   id: string;
   letter: string;
   animal: string;
+  channel?: string;
   title: string;
   videoUrl?: string;
   thumbUrl?: string;
@@ -86,6 +89,19 @@ const BRANDS = [
   { id: "wildtails", name: "WildTails", emoji: "🦁", tagline: "Wild nature shorts" },
 ] as const;
 type BrandId = (typeof BRANDS)[number]["id"];
+
+/* ── Per-channel formats: each brand runs its own show ── */
+const channelEmoji = (c?: string) => (c === "wildtails" ? "🦁" : "🐊");
+const jobTitle = (j: { letter: string; animal: string; channel?: string }) =>
+  j.channel === "wildtails" ? `${j.animal} — Wild Facts` : `${j.letter} is for ${j.animal}`;
+
+/** Default batch lists per channel — matches each channel's real format. */
+const DEFAULT_LISTS: Record<BrandId, string> = {
+  avatails:
+    "A, Alligator\nB, Bear\nC, Cat\nD, Dog\nE, Elephant\nF, Frog\nG, Giraffe\nH, Hippo\nI, Iguana\nJ, Jaguar\nK, Koala\nL, Lion\nM, Monkey\nN, Narwhal\nO, Owl\nP, Penguin\nQ, Quokka\nR, Rabbit\nS, Snake\nT, Tiger\nU, Unau\nV, Vulture\nW, Whale\nX, X-ray Fish\nY, Yak\nZ, Zebra",
+  wildtails:
+    "Lion\nWolf\nGolden Retriever\nRed Panda\nBald Eagle\nDolphin\nGerman Shepherd\nTiger\nElephant\nPersian Cat\nPenguin\nSiberian Husky",
+};
 
 /* Approval gate — the Publisher holds finished episodes until the boss taps OK. */
 async function decideJob(jobId: string, action: "approve" | "reject", note?: string): Promise<string> {
@@ -148,8 +164,8 @@ export default function Home() {
         <div className="div-badge">YouTube Automation Division</div>
       </header>
       <p className="subtitle">
-        Powering the <strong>@AvaTails</strong> and <strong>@WildTails</strong> channels — your AI agent team for
-        kids animal-learning episodes, working around the clock.
+        Powering <strong>@AvaTails</strong> 🐊 (toddler Animal ABCs) and <strong>@WildTails</strong> 🦁 (family
+        wildlife facts) — two channels, two formats, one AI agent team working around the clock.
       </p>
 
       <nav className="tabs">
@@ -195,9 +211,9 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
   const workingIds = runningJob?.agents || (waitingJob ? ["publisher"] : []);
   const boardJob = runningJob || waitingJob;
   const officeStatus = runningJob
-    ? `${runningJob.letter} is for ${runningJob.animal} — ${runningJob.stage || "starting"}`
+    ? `${jobTitle(runningJob)} — ${runningJob.stage || "starting"}`
     : waitingJob
-      ? `${waitingJob.letter} is for ${waitingJob.animal} — Publisher needs your OK ✋`
+      ? `${jobTitle(waitingJob)} — Publisher needs your OK ✋`
       : queuedCount > 0
         ? `${queuedCount} job${queuedCount > 1 ? "s" : ""} waiting — agents standing by`
         : "All agents idle — queue is empty";
@@ -282,7 +298,7 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
           status={officeStatus}
           stage={runningJob?.stage ?? (waitingJob ? "needs approval" : undefined)}
           progress={boardJob?.progress}
-          jobTitle={boardJob ? `${boardJob.letter} is for ${boardJob.animal}` : undefined}
+          jobTitle={boardJob ? jobTitle(boardJob) : undefined}
         />
         <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0, marginTop: 10 }}>
           Drag to orbit · scroll to zoom · agents glow when the real pipeline has them working. Data-centre floor adapted from{" "}
@@ -297,11 +313,9 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
         <div className="card approval-card">
           <h2>✋ Waiting for your OK</h2>
           <div className="scene-row">
-            <div className="thumb placeholder">{waitingJob.letter}</div>
+            <div className="thumb placeholder">{channelEmoji(waitingJob.channel)}</div>
             <div className="line">
-              <strong>
-                {waitingJob.letter} is for {waitingJob.animal}
-              </strong>
+              <strong>{jobTitle(waitingJob)}</strong>
               <div style={{ color: "var(--muted)", fontSize: 12 }}>
                 Episode produced{waitingJob.costUSD != null && ` · $${waitingJob.costUSD.toFixed(3)}`} — the Publisher
                 won't ship it until you approve.
@@ -335,11 +349,9 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
         <div className="card">
           <h2>🔴 Live now</h2>
           <div className="scene-row">
-            <div className="thumb placeholder">{runningJob.letter}</div>
+            <div className="thumb placeholder">{channelEmoji(runningJob.channel)}</div>
             <div className="line">
-              <strong>
-                {runningJob.letter} is for {runningJob.animal}
-              </strong>
+              <strong>{jobTitle(runningJob)}</strong>
               <div style={{ color: "var(--muted)", fontSize: 12 }}>stage: {runningJob.stage || "starting"}</div>
             </div>
             <div className="status">{runningJob.progress ?? 0}%</div>
@@ -382,9 +394,9 @@ function FloorTab({ queue, settings }: { queue: QueueState | null; settings: Set
 /* ───────────────────────── Queue ───────────────────────── */
 
 function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Settings }) {
-  const [input, setInput] = useState(
-    "A, Alligator\nB, Bear\nC, Cat\nD, Dog\nE, Elephant\nF, Frog\nG, Giraffe\nH, Hippo\nI, Iguana\nJ, Jaguar\nK, Koala\nL, Lion\nM, Monkey\nN, Narwhal\nO, Owl\nP, Penguin\nQ, Quokka\nR, Rabbit\nS, Snake\nT, Tiger\nU, Unau\nV, Vulture\nW, Whale\nX, X-ray Fish\nY, Yak\nZ, Zebra"
-  );
+  const [qBrand, setQBrand] = useState<BrandId>("avatails");
+  const [inputs, setInputs] = useState<Record<BrandId, string>>(DEFAULT_LISTS);
+  const input = inputs[qBrand];
   const [msg, setMsg] = useState("");
   const [decidingId, setDecidingId] = useState("");
   void settings;
@@ -406,21 +418,24 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
       .map((l) => l.trim())
       .filter(Boolean)
       .map((l) => {
-        const [letter, animal] = l.split(/[,\t]/).map((p) => p.trim());
-        return { letter, animal };
+        const parts = l.split(/[,\t]/).map((p) => p.trim());
+        // "Letter, Animal" — or just "Animal" (WildTails style; letter auto-derives)
+        return parts.length > 1 ? { letter: parts[0], animal: parts[1] } : { letter: "", animal: parts[0] };
       })
-      .filter((j) => j.letter && j.animal);
+      .filter((j) => j.animal && (qBrand === "wildtails" || j.letter));
     if (!jobs.length) return;
     setMsg("Adding jobs…");
     try {
       const res = await fetch("/api/queue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobs }),
+        body: JSON.stringify({ jobs, channel: qBrand }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setMsg(`✅ ${data.enqueued} jobs queued. Agents will pick them up.`);
+      setMsg(
+        `✅ ${data.enqueued} ${channelEmoji(qBrand)} jobs queued for ${qBrand === "wildtails" ? "WildTails" : "AvaTails"}. Agents will pick them up.`
+      );
     } catch (e) {
       setMsg(`❌ ${e instanceof Error ? e.message : e}`);
     }
@@ -434,12 +449,32 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
         <h2>
           <span className="num">📋</span>Add jobs
         </h2>
-        <label>One episode per line: Letter, Animal</label>
-        <textarea rows={12} value={input} onChange={(e) => setInput(e.target.value)} />
-        <button onClick={enqueue}>➕ Enqueue jobs</button>
+        <div className="tabs" style={{ marginBottom: 12 }}>
+          {BRANDS.map((b) => (
+            <button
+              key={b.id}
+              className={`tab ${qBrand === b.id ? "active" : ""}`}
+              onClick={() => setQBrand(b.id)}
+            >
+              {b.emoji} {b.name}
+            </button>
+          ))}
+        </div>
+        <label>
+          {qBrand === "wildtails"
+            ? "One animal per line — Wild Facts format (hook → facts → wow → outro)"
+            : "One episode per line: Letter, Animal — Animal ABCs format"}
+        </label>
+        <textarea
+          rows={12}
+          value={input}
+          onChange={(e) => setInputs({ ...inputs, [qBrand]: e.target.value })}
+        />
+        <button onClick={enqueue}>➕ Enqueue {qBrand === "wildtails" ? "WildTails" : "AvaTails"} jobs</button>
         {msg && <p style={{ fontSize: 13 }}>{msg}</p>}
         <p style={{ fontSize: 12, color: "var(--muted)" }}>
-          Jobs live in storage, not your browser — the cron worker keeps producing even when this tab is closed.
+          Each channel runs its own format: 🐊 toddler ABC episodes vs 🦁 family wildlife facts. Jobs live in storage,
+          not your browser — the cron worker keeps producing even when this tab is closed.
         </p>
       </div>
 
@@ -448,9 +483,9 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
         {jobs.length === 0 && <div style={{ color: "var(--muted)", fontSize: 14 }}>No jobs yet.</div>}
         {jobs.map((j) => (
           <div key={j.id} className="scene-row">
-            <div className="thumb placeholder">{j.letter}</div>
+            <div className="thumb placeholder">{channelEmoji(j.channel)}</div>
             <div className="line">
-              <strong>{j.animal}</strong>
+              <strong>{jobTitle(j)}</strong>
               <div style={{ fontSize: 12, color: "var(--muted)" }}>
                 {new Date(j.createdAt).toLocaleString()}
                 {j.costUSD != null && ` · $${j.costUSD.toFixed(3)}`}
@@ -492,6 +527,7 @@ function QueueTab({ queue, settings }: { queue: QueueState | null; settings: Set
 /* ───────────────────────── Create (manual single) ───────────────────────── */
 
 function CreateTab({ settings }: { settings: Settings }) {
+  const [cBrand, setCBrand] = useState<BrandId>("avatails");
   const [letter, setLetter] = useState("A");
   const [animal, setAnimal] = useState("Alligator");
   const [busy, setBusy] = useState(false);
@@ -510,7 +546,12 @@ function CreateTab({ settings }: { settings: Settings }) {
       const res = await fetch("/api/episodes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ letter, animal, settings }),
+        body: JSON.stringify({
+          letter: cBrand === "wildtails" ? animal.trim()[0] || "W" : letter,
+          animal,
+          channel: cBrand,
+          settings,
+        }),
       });
       if (!res.ok || !res.body) throw new Error(`Pipeline failed (${res.status})`);
 
@@ -548,7 +589,10 @@ function CreateTab({ settings }: { settings: Settings }) {
     if (!episode?.videoUrl) return;
     const a = document.createElement("a");
     a.href = episode.videoUrl;
-    a.download = `${episode.letter}-is-for-${episode.animal}.mp4`;
+    a.download =
+      episode.channel === "wildtails"
+        ? `${episode.animal.toLowerCase().replace(/\s+/g, "-")}-wild-facts.mp4`
+        : `${episode.letter}-is-for-${episode.animal}.mp4`;
     a.target = "_blank";
     a.click();
   }
@@ -560,12 +604,34 @@ function CreateTab({ settings }: { settings: Settings }) {
           <h2>
             <span className="num">▶</span>Single episode (instant)
           </h2>
-          <label>Letter</label>
-          <input type="text" value={letter} maxLength={1} onChange={(e) => setLetter(e.target.value.toUpperCase())} />
-          <label>Animal</label>
+          <div className="tabs" style={{ marginBottom: 12 }}>
+            {BRANDS.map((b) => (
+              <button
+                key={b.id}
+                className={`tab ${cBrand === b.id ? "active" : ""}`}
+                onClick={() => {
+                  setCBrand(b.id);
+                  setAnimal(b.id === "wildtails" ? "Lion" : "Alligator");
+                }}
+              >
+                {b.emoji} {b.name}
+              </button>
+            ))}
+          </div>
+          {cBrand === "avatails" && (
+            <>
+              <label>Letter</label>
+              <input type="text" value={letter} maxLength={1} onChange={(e) => setLetter(e.target.value.toUpperCase())} />
+            </>
+          )}
+          <label>{cBrand === "wildtails" ? "Animal (wildlife, dog breed or pet)" : "Animal"}</label>
           <input type="text" value={animal} onChange={(e) => setAnimal(e.target.value)} />
-          <button onClick={run} disabled={busy || !letter || !animal}>
-            {busy ? "🏭 Factory running…" : "🚀 Generate full episode"}
+          <button onClick={run} disabled={busy || !animal || (cBrand === "avatails" && !letter)}>
+            {busy
+              ? "🏭 Factory running…"
+              : cBrand === "wildtails"
+                ? "🚀 Generate Wild Facts episode"
+                : "🚀 Generate full episode"}
           </button>
           {(busy || progress > 0) && (
             <div className="progress">
@@ -643,7 +709,16 @@ function CreateTab({ settings }: { settings: Settings }) {
                 {episode.script.tags?.join(", ")}
               </div>
               <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 0 }}>
-                ⚠️ Set the video as <strong>“Made for Kids”</strong> when uploading (COPPA).
+                {episode.channel === "wildtails" ? (
+                  <>
+                    🦁 WildTails targets a family audience — upload to <strong>@WildTails24</strong> (not marked
+                    “Made for Kids”, so comments stay on).
+                  </>
+                ) : (
+                  <>
+                    ⚠️ Set the video as <strong>“Made for Kids”</strong> when uploading to @AvaTails (COPPA).
+                  </>
+                )}
               </p>
             </div>
           </>
@@ -697,11 +772,13 @@ function HistoryTab() {
               <img src={e.thumbUrl} alt={e.title} />
             ) : (
               <div className="thumb placeholder" style={{ width: "100%", height: 140 }}>
-                {e.letter}
+                {e.channel === "wildtails" ? "🦁" : e.letter}
               </div>
             )}
             <div className="history-meta">
-              <div className="history-title">{e.title || `${e.letter} is for ${e.animal}`}</div>
+              <div className="history-title">
+                {channelEmoji(e.channel)} {e.title || jobTitle(e)}
+              </div>
               <div className="history-date">
                 {new Date(e.createdAt).toLocaleDateString()} · {e.status === "done" ? "✅ done" : "❌ failed"}
               </div>
